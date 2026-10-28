@@ -1,4 +1,6 @@
-# Einkaufsliste – Konzept
+# Konsum – Konzept
+
+Einkaufsliste für Haushalte und Vereine. App-ID: `de.azador.konsum`
 
 Stand: 2026-10-29 · Status: **Entwurf** (offene Punkte siehe unten)
 
@@ -129,11 +131,10 @@ Quelle nennen.
   funktioniert die App deshalb auch unterwegs.
 - **HTTPS ist nötig**, auch im LAN: Service Worker (Offline-Betrieb) und die
   Kryptografie für die Matrix-Verschlüsselung (WebCrypto) gibt es im Browser nur
-  in einem sicheren Kontext. Möglichkeiten:
-  - Caddy mit eigener lokaler Zertifizierungsstelle (`tls internal`); das
-    Stammzertifikat wird einmalig auf jedem Gerät installiert.
-  - Echtes Let's-Encrypt-Zertifikat für einen Namen der eigenen Domain, der auf
-    die LAN-Adresse zeigt (DNS-01-Verfahren, kein Zugriff von außen nötig).
+  in einem sicheren Kontext. Lösung:
+  Gewählt: Caddy mit eigener lokaler Zertifizierungsstelle (`tls internal`) für
+  den Servernamen `loboci`. Das Stammzertifikat wird einmalig auf jedem Gerät
+  installiert.
 - **iOS:** Gerät im heimischen WLAN, Seite in Safari öffnen, „Teilen →
   Zum Home-Bildschirm“. Danach läuft die App offline aus dem Cache und
   synchronisiert unterwegs mit dem Matrix-Server. Updates kommen beim nächsten
@@ -146,8 +147,9 @@ Quelle nennen.
 - Sync-Backend: Matrix (2026-10-29)
 - Artikelstamm, Kategorien und Läden gehören zur Gruppe (2026-10-29)
 - Web-App wird lokal ausgeliefert, Server-Konfiguration liegt im Repo (2026-10-29)
+- Name „Konsum“, App-ID `de.azador.konsum` (2026-10-29)
+- HTTPS im LAN über Caddy mit lokaler CA (2026-10-29)
 
 ## Offene Punkte
 
-1. **App-Name** und Paketname (`de.azador.<name>`).
-2. **HTTPS im LAN:** lokale CA oder Let's-Encrypt-Zertifikat über die eigene Domain?
+- keine
