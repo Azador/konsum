@@ -9,6 +9,7 @@ import 'entry_sheet.dart';
 import 'format.dart';
 import 'scan.dart';
 import 'scope.dart';
+import 'status_line.dart';
 
 /// Hauptseite: die gewählte Liste mit Eingabezeile zum Hinzufügen.
 class ListPage extends StatefulWidget {
@@ -191,43 +192,41 @@ class _ListPageState extends State<ListPage> {
               ),
             ),
           if (_focus.hasFocus) _suggestions(),
-          SafeArea(
-            top: false,
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(12, 4, 12, 8),
-              child: TextField(
-                controller: _input,
-                focusNode: _focus,
-                textInputAction: TextInputAction.done,
-                decoration: InputDecoration(
-                  hintText: 'Hinzufügen, z. B. „2 kg Mehl“',
-                  prefixIcon: const Icon(Icons.add_shopping_cart),
-                  border: const OutlineInputBorder(),
-                  suffixIcon: _input.text.isEmpty
-                      ? IconButton(
-                          tooltip: 'Barcode scannen',
-                          icon: const Icon(Icons.qr_code_scanner),
-                          onPressed: () async {
-                            final code = await scanBarcode(context);
-                            if (code != null && context.mounted) {
-                              await handleListScan(
-                                context,
-                                _session,
-                                widget.listId,
-                                code,
-                              );
-                            }
-                          },
-                        )
-                      : IconButton(
-                          icon: const Icon(Icons.send),
-                          onPressed: () => _add(_input.text),
-                        ),
-                ),
-                onSubmitted: _add,
+          Padding(
+            padding: const EdgeInsets.fromLTRB(12, 4, 12, 8),
+            child: TextField(
+              controller: _input,
+              focusNode: _focus,
+              textInputAction: TextInputAction.done,
+              decoration: InputDecoration(
+                hintText: 'Hinzufügen, z. B. „2 kg Mehl“',
+                prefixIcon: const Icon(Icons.add_shopping_cart),
+                border: const OutlineInputBorder(),
+                suffixIcon: _input.text.isEmpty
+                    ? IconButton(
+                        tooltip: 'Barcode scannen',
+                        icon: const Icon(Icons.qr_code_scanner),
+                        onPressed: () async {
+                          final code = await scanBarcode(context);
+                          if (code != null && context.mounted) {
+                            await handleListScan(
+                              context,
+                              _session,
+                              widget.listId,
+                              code,
+                            );
+                          }
+                        },
+                      )
+                    : IconButton(
+                        icon: const Icon(Icons.send),
+                        onPressed: () => _add(_input.text),
+                      ),
               ),
+              onSubmitted: _add,
             ),
           ),
+          const StatusLine(),
         ],
       ),
     );

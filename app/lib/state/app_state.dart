@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart';
 
 import '../storage/store.dart';
 import 'group_session.dart';
+import 'status_messages.dart';
 
 /// Kategorien, mit denen eine neue Gruppe startet.
 const defaultCategories = [
@@ -26,6 +27,9 @@ class AppState extends ChangeNotifier {
   AppState._(this._store, this.node, this._random);
 
   static const _metaKey = 'app';
+
+  /// Kurze Meldungen für die Statuszeile.
+  final status = StatusMessages();
 
   /// Lädt den gespeicherten Zustand. Beim ersten Start wird eine Gruppe mit
   /// einer Liste und Standardkategorien angelegt.

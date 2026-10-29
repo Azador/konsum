@@ -6,6 +6,7 @@ import 'package:mobile_scanner/mobile_scanner.dart';
 import '../services/open_food_facts.dart';
 import '../state/group_session.dart';
 import 'dialogs.dart';
+import 'scope.dart';
 
 /// Kamera-Scanner gibt es auf Android, iOS und im Browser. Unter Linux wird
 /// der Barcode eingetippt oder mit einem USB-Handscanner (der sich wie eine
@@ -79,7 +80,7 @@ Future<void> handleListScan(
   String code,
 ) async {
   final group = session.group;
-  final messenger = ScaffoldMessenger.of(context);
+  final status = AppScope.of(context).status;
   var article = group.articleForBarcode(code);
 
   if (article == null) {
@@ -101,27 +102,18 @@ Future<void> handleListScan(
       .firstOrNull;
   if (entry != null && !entry.checked) {
     session.apply(group.setChecked(listId, article.id, true));
-    messenger.showSnackBar(
-      SnackBar(
-        content: Text('${article.name} abgehakt'),
-        action: SnackBarAction(
-          label: 'Rückgängig',
-          onPressed: () =>
-              session.apply(group.setChecked(listId, article!.id, false)),
-        ),
-      ),
+    status.show(
+      '${article.name} abgehakt',
+      actionLabel: 'Rückgängig',
+      onAction: () =>
+          session.apply(group.setChecked(listId, article!.id, false)),
     );
   } else {
     session.apply(group.addToList(listId, article.id));
-    messenger.showSnackBar(
-      SnackBar(
-        content: Text('${article.name} hinzugefügt'),
-        action: SnackBarAction(
-          label: 'Rückgängig',
-          onPressed: () =>
-              session.apply(group.removeFromList(listId, article!.id)),
-        ),
-      ),
+    status.show(
+      '${article.name} hinzugefügt',
+      actionLabel: 'Rückgängig',
+      onAction: () => session.apply(group.removeFromList(listId, article!.id)),
     );
   }
 }

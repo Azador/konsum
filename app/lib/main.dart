@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:intl/date_symbol_data_local.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 
 import 'state/app_state.dart';
 import 'state/matrix_service.dart';
@@ -16,6 +17,11 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await initializeDateFormatting('de');
   final state = await AppState.load(await openStore());
+  try {
+    state.status.version = (await PackageInfo.fromPlatform()).version;
+  } catch (_) {
+    // Ohne Version geht es auch.
+  }
   final matrix = MatrixService(state);
   Timer.periodic(const Duration(seconds: 30), (_) {
     state.flushAll();

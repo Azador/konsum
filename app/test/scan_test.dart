@@ -96,8 +96,24 @@ void main() {
     await tester.pump();
     expect(session.group.entries(listId).single.checked, isTrue);
     expect(session.group.articles, hasLength(1));
+    expect(find.text('Milch abgehakt'), findsOneWidget);
 
-    // Snackbars und verzögertes Speichern ablaufen lassen.
+    // Rückgängig in der Statuszeile.
+    await tester.tap(find.text('Rückgängig'));
+    await tester.pump();
+    expect(session.group.entries(listId).single.checked, isFalse);
+    expect(find.text('Milch abgehakt'), findsNothing);
+
+    // Meldungen verschwinden von selbst, die Eingabezeile bleibt, wo sie ist.
+    final inputTop = tester.getTopLeft(find.byType(TextField)).dy;
+    state.status.show('Test', actionLabel: 'Rückgängig', onAction: () {});
+    await tester.pump();
+    expect(find.text('Test'), findsOneWidget);
+    expect(tester.getTopLeft(find.byType(TextField)).dy, inputTop);
+    await tester.pump(const Duration(seconds: 5));
+    expect(find.text('Test'), findsNothing);
+
+    // Verzögertes Speichern ablaufen lassen.
     await tester.pump(const Duration(seconds: 10));
     await tester.pumpAndSettle();
   });
