@@ -110,8 +110,8 @@ Einkaufsliste/
 ├── LICENSE              GPL-3.0
 ├── README.md
 ├── packages/
-│   └── core/            Datenmodell, Konfliktauflösung, Sync-Schnittstelle (reines Dart, gut testbar)
-│   └── sync_matrix/     Matrix-Backend
+│   ├── konsum_core/     Datenmodell, Konfliktauflösung, Sync-Schnittstelle (reines Dart, gut testbar)
+│   └── konsum_matrix/   Matrix-Backend
 ├── app/                 Flutter-App (Android, Linux, iOS, Web)
 └── deploy/web/          Caddy-Konfiguration + Docker Compose für die Web-App
 ```

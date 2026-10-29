@@ -1,0 +1,11 @@
+name: konsum_core
+description: Datenmodell und Konfliktauflösung für Konsum, unabhängig von UI und Sync-Backend.
+version: 0.1.0
+publish_to: none
+
+environment:
+  sdk: ^3.13.0
+
+dev_dependencies:
+  lints: ^6.0.0
+  test: ^1.26.0
