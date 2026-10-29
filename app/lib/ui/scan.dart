@@ -6,6 +6,7 @@ import 'package:mobile_scanner/mobile_scanner.dart';
 import '../services/open_food_facts.dart';
 import '../state/group_session.dart';
 import 'dialogs.dart';
+import 'format.dart';
 import 'scope.dart';
 
 /// Kamera-Scanner gibt es auf Android, iOS und im Browser. Unter Linux wird
@@ -142,8 +143,27 @@ Future<String?> assignBarcodeDialog(
   session.apply([
     ...session.group.assignBarcode(code, articleId),
     if (info != null) ...session.group.setProductInfo(code, info),
+    ..._packSizeFrom(session, articleId, info),
   ]);
   return articleId;
+}
+
+/// Übernimmt die Packungsgröße aus den Produktdaten („500 g“), wenn der
+/// Artikel noch keine hat.
+List<Change> _packSizeFrom(
+  GroupSession session,
+  String articleId,
+  ProductInfo? info,
+) {
+  final amount = parseAmount(info?.quantity ?? '');
+  final article = session.group.article(articleId);
+  if (amount == null || article == null || article.packSize != null) {
+    return const [];
+  }
+  return session.group.updateArticle(articleId, {
+    'packSize': amount.size,
+    'packUnit': amount.unit,
+  });
 }
 
 /// Ordnet einem Artikel einen Barcode zu (Scan oder Eingabe) und schlägt
@@ -157,7 +177,12 @@ Future<void> addBarcodeToArticle(
   if (code == null) return;
   session.apply(session.group.assignBarcode(code, articleId));
   final info = await _lookup(code);
-  if (info != null) session.apply(session.group.setProductInfo(code, info));
+  if (info != null) {
+    session.apply([
+      ...session.group.setProductInfo(code, info),
+      ..._packSizeFrom(session, articleId, info),
+    ]);
+  }
 }
 
 class _AssignDialog extends StatefulWidget {

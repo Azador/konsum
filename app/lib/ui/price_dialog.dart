@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'package:konsum_core/konsum_core.dart';
+
 import '../state/group_session.dart';
 import 'format.dart';
 import 'unit_field.dart';
@@ -32,18 +34,41 @@ class _PriceDialog extends StatefulWidget {
 }
 
 class _PriceDialogState extends State<_PriceDialog> {
+  late final _article = widget.session.group.article(widget.articleId);
   final _price = TextEditingController();
   final _quantity = TextEditingController();
-  late String? _unit = widget.session.group
-      .article(widget.articleId)
-      ?.defaultUnit;
+  late final _packSize = TextEditingController(
+    text: _article?.packSize == null
+        ? ''
+        : formatQuantity(_article!.packSize, null),
+  );
+  late String? _unit = _article?.defaultUnit;
+  late String _packUnit = _article?.packUnit ?? Units.gram;
   late String? _shopId = widget.shopId;
 
   @override
   void dispose() {
     _price.dispose();
     _quantity.dispose();
+    _packSize.dispose();
     super.dispose();
+  }
+
+  num? get _packSizeValue =>
+      Units.isCount(_unit) ? parseNumber(_packSize.text) : null;
+
+  /// Grundpreis zu den aktuellen Eingaben, z. B. „2,58 €/kg“.
+  String? get _basePrice {
+    final cents = parseCents(_price.text);
+    if (cents == null) return null;
+    final base = baseAmount(
+      quantity: parseNumber(_quantity.text),
+      unit: _unit,
+      packSize: _packSizeValue,
+      packUnit: _packUnit,
+    );
+    final perBase = pricePerBase(cents, base);
+    return perBase == null ? null : formatBasePrice(perBase, base!.unit);
   }
 
   void _save() {
@@ -56,6 +81,8 @@ class _PriceDialogState extends State<_PriceDialog> {
             cents,
             quantity: parseNumber(_quantity.text),
             unit: _unit,
+            packSize: _packSizeValue,
+            packUnit: _packSizeValue == null ? null : _packUnit,
             shopId: _shopId,
           )
           .changes,
@@ -78,10 +105,12 @@ class _PriceDialogState extends State<_PriceDialog> {
               keyboardType: const TextInputType.numberWithOptions(
                 decimal: true,
               ),
-              decoration: const InputDecoration(
+              decoration: InputDecoration(
                 labelText: 'Preis (€)',
-                border: OutlineInputBorder(),
+                helperText: _basePrice,
+                border: const OutlineInputBorder(),
               ),
+              onChanged: (_) => setState(() {}),
             ),
             const SizedBox(height: 12),
             Row(
@@ -96,6 +125,7 @@ class _PriceDialogState extends State<_PriceDialog> {
                       labelText: 'für Menge',
                       border: OutlineInputBorder(),
                     ),
+                    onChanged: (_) => setState(() {}),
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -107,6 +137,38 @@ class _PriceDialogState extends State<_PriceDialog> {
                 ),
               ],
             ),
+            if (Units.isCount(_unit)) ...[
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _packSize,
+                      keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true,
+                      ),
+                      decoration: InputDecoration(
+                        labelText:
+                            'Inhalt je ${unitLabel(_unit ?? Units.pack)}',
+                        hintText: 'optional',
+                        border: const OutlineInputBorder(),
+                      ),
+                      onChanged: (_) => setState(() {}),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: UnitField(
+                      value: _packUnit,
+                      units: Units.measures,
+                      allowNone: false,
+                      onChanged: (u) =>
+                          setState(() => _packUnit = u ?? Units.gram),
+                    ),
+                  ),
+                ],
+              ),
+            ],
             const SizedBox(height: 12),
             DropdownButtonFormField<String?>(
               initialValue: _shopId,

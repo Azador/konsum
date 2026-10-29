@@ -98,6 +98,35 @@ class ArticlePage extends StatelessWidget {
               group.updateArticle(articleId, {'defaultUnit': v}),
             ),
           ),
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            leading: const Icon(Icons.scale_outlined),
+            title: const Text('Packungsgröße'),
+            subtitle: Text(
+              article.packSize == null
+                  ? 'Keine (z. B. 500 g, 1,5 l)'
+                  : formatQuantity(article.packSize, article.packUnit),
+            ),
+            trailing: const Icon(Icons.edit_outlined),
+            onTap: () async {
+              final text = await promptText(
+                context,
+                title: 'Packungsgröße',
+                label: 'z. B. 500 g oder 1,5 l (leer: keine)',
+                initial: article.packSize == null
+                    ? ''
+                    : formatQuantity(article.packSize, article.packUnit),
+              );
+              if (text == null) return;
+              final amount = parseAmount(text);
+              session.apply(
+                group.updateArticle(articleId, {
+                  'packSize': amount?.size,
+                  'packUnit': amount?.unit,
+                }),
+              );
+            },
+          ),
           const SizedBox(height: 24),
           Row(
             children: [
@@ -154,8 +183,16 @@ class ArticlePage extends StatelessWidget {
               title: Text(
                 [
                   formatCents(p.cents),
-                  if (p.quantity != null)
-                    'für ${formatQuantity(p.quantity, p.unit)}',
+                  if (formatAmount(
+                        quantity: p.quantity,
+                        unit: p.unit,
+                        packSize: p.packSize,
+                        packUnit: p.packUnit,
+                      )
+                      case final amount?)
+                    'für $amount',
+                  if (p.basePriceCents case final b?)
+                    '(${formatBasePrice(b, p.base!.unit)})',
                 ].join(' '),
               ),
               subtitle: Text(

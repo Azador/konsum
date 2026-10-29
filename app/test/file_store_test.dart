@@ -11,9 +11,7 @@ void main() {
 
   test('gleichzeitige Schreibvorgänge auf denselben Schlüssel', () async {
     final store = FileStore(Directory('${dir.path}/data'));
-    await Future.wait([
-      for (var i = 0; i < 20; i++) store.write('app', '$i'),
-    ]);
+    await Future.wait([for (var i = 0; i < 20; i++) store.write('app', '$i')]);
     expect(await store.read('app'), '19');
     expect(File('${dir.path}/data/app.json.tmp').existsSync(), isFalse);
   });

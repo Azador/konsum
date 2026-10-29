@@ -13,7 +13,19 @@ const unitLabels = {
   Units.bunch: 'Bund',
 };
 
+const _pluralLabels = {
+  Units.pack: 'Packungen',
+  Units.can: 'Dosen',
+  Units.bottle: 'Flaschen',
+};
+
 String unitLabel(String? unit) => unit == null ? '' : unitLabels[unit] ?? unit;
+
+/// Einheit passend zur Menge: „1 Packung“, „2 Packungen“.
+String unitLabelFor(String? unit, num? quantity) =>
+    quantity != null && quantity != 1
+    ? _pluralLabels[unit] ?? unitLabel(unit)
+    : unitLabel(unit);
 
 final _number = NumberFormat.decimalPattern('de');
 final _money = NumberFormat.currency(locale: 'de', symbol: '€');
@@ -23,11 +35,48 @@ String formatQuantity(num? quantity, String? unit) {
   if (quantity == null) return unitLabel(unit);
   return [
     _number.format(quantity),
-    unitLabel(unit),
+    unitLabelFor(unit, quantity),
   ].where((s) => s.isNotEmpty).join(' ');
 }
 
+/// Menge mit Packungsgröße, z. B. „3 Packungen à 500 g“ oder „200 g“.
+/// Ohne Menge: null. Ohne Einheit gilt Packung.
+String? formatAmount({
+  num? quantity,
+  String? unit,
+  num? packSize,
+  String? packUnit,
+}) {
+  if (quantity == null) return null;
+  final text = formatQuantity(quantity, unit ?? Units.pack);
+  if (Units.isCount(unit) && packSize != null && Units.isMeasure(packUnit)) {
+    return '$text à ${formatQuantity(packSize, packUnit)}';
+  }
+  return text;
+}
+
 String formatCents(int cents) => _money.format(cents / 100);
+
+/// Preis je Grundeinheit, z. B. „2,58 €/kg“ oder „0,99 €/Packung“.
+String formatBasePrice(num cents, String baseUnit) =>
+    '${_money.format(cents / 100)}/${unitLabel(baseUnit)}';
+
+/// Liest eine Packungsgröße wie „500 g“, „1,5 l“ oder „0.75L“; nur Gewicht
+/// und Volumen. Null, wenn nichts Passendes darin steht.
+({num size, String unit})? parseAmount(String text) {
+  final m = RegExp(
+    r'(\d+(?:[.,]\d+)?)\s*(kg|g|ml|l)\b',
+    caseSensitive: false,
+  ).firstMatch(text);
+  if (m == null) return null;
+  final size = parseNumber(m.group(1)!);
+  if (size == null || size == 0) return null;
+  return (size: size, unit: m.group(2)!.toLowerCase());
+}
+
+/// Betrag für Eingabefelder: „2,58“.
+String formatCentsInput(num cents) =>
+    (cents / 100).toStringAsFixed(2).replaceAll('.', ',');
 
 String formatDate(int millis) =>
     _date.format(DateTime.fromMillisecondsSinceEpoch(millis));

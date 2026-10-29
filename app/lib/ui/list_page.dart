@@ -307,8 +307,18 @@ class _EntryTile extends StatelessWidget {
     final article = group.article(entry.articleId)!;
     final privateNote = session.private.note(entry.id);
     final price = group.estimatedPrice(entry, shopId: shopId);
+    final estimated = entry.totalCents == null;
+    final base = entry.base;
+    final basePrice = estimated
+        ? group.lastPrice(entry.articleId, shopId: shopId)?.basePriceCents
+        : entry.basePriceCents;
     final details = [
-      formatQuantity(entry.quantity, entry.unit),
+      ?formatAmount(
+        quantity: entry.quantity,
+        unit: entry.unit,
+        packSize: entry.packSize,
+        packUnit: entry.packUnit,
+      ),
       ?entry.note,
       if (privateNote != null) '🔒 $privateNote',
     ].where((s) => s.isNotEmpty).join(' · ');
@@ -342,11 +352,21 @@ class _EntryTile extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             if (price != null)
-              Text(
-                entry.price == null
-                    ? '≈ ${formatCents(price)}'
-                    : formatCents(price),
-                style: muted,
+              Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(
+                    estimated ? '≈ ${formatCents(price)}' : formatCents(price),
+                    style: muted,
+                  ),
+                  if (basePrice != null && base != null)
+                    Text(
+                      formatBasePrice(basePrice, base.unit),
+                      style: Theme.of(context).textTheme.bodySmall
+                          ?.merge(muted),
+                    ),
+                ],
               ),
             IconButton(
               tooltip: 'Bearbeiten',

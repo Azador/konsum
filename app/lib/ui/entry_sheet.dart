@@ -34,45 +34,158 @@ class _EntrySheetState extends State<_EntrySheet> {
         ? ''
         : formatQuantity(widget.entry.quantity, null),
   );
-  late final _price = TextEditingController(
-    text: widget.entry.price == null
+  late final _packSize = TextEditingController(
+    text: widget.entry.packSize == null
         ? ''
-        : (widget.entry.price! / 100).toStringAsFixed(2).replaceAll('.', ','),
+        : formatQuantity(widget.entry.packSize, null),
+  );
+  late final _price = TextEditingController(
+    text: switch (widget.entry.totalCents) {
+      final c? => formatCentsInput(c),
+      null => '',
+    },
+  );
+
+  /// Preis je Grundeinheit in Cent, ungerundet, damit Preis und Grundpreis
+  /// beim Hin- und Herrechnen zusammenpassen.
+  late num? _basePrice = widget.entry.basePriceCents;
+  late final _basePriceText = TextEditingController(
+    text: _basePrice == null ? '' : formatCentsInput(_basePrice!),
   );
   late final _note = TextEditingController(text: widget.entry.note ?? '');
   late final _privateNote = TextEditingController(
     text: widget.session.private.note(widget.entry.id) ?? '',
   );
-  late String? _unit = widget.entry.unit;
+
+  /// Ohne Einheit gilt Packung.
+  late String _unit = widget.entry.unit ?? Units.pack;
+  late String _packUnit = widget.entry.packUnit ?? Units.gram;
 
   @override
   void dispose() {
-    for (final c in [_quantity, _price, _note, _privateNote]) {
+    for (final c in [
+      _quantity,
+      _packSize,
+      _price,
+      _basePriceText,
+      _note,
+      _privateNote,
+    ]) {
       c.dispose();
     }
     super.dispose();
+  }
+
+  num? get _packSizeValue =>
+      Units.isCount(_unit) ? parseNumber(_packSize.text) : null;
+
+  /// Menge in der Grundeinheit nach den aktuellen Eingaben.
+  BaseAmount? get _base => baseAmount(
+    quantity: parseNumber(_quantity.text),
+    unit: _unit,
+    packSize: _packSizeValue,
+    packUnit: _packUnit,
+  );
+
+  /// Grundeinheit, auch wenn die Menge (noch) fehlt.
+  String get _baseUnit => baseAmount(
+    quantity: 1,
+    unit: _unit,
+    packSize: _packSizeValue,
+    packUnit: _packUnit,
+  )!.unit;
+
+  /// Menge, Einheit oder Packungsgröße geändert: Preis über den Grundpreis
+  /// neu berechnen; ist nur der Preis bekannt, den Grundpreis aus ihm.
+  void _amountChanged() {
+    final base = _base;
+    if (_baseUnit != _shownBaseUnit) {
+      // Andere Grundeinheit (z. B. €/kg → €/Dose): der alte Grundpreis passt
+      // nicht mehr. Der Preis bleibt, der Grundpreis wird neu berechnet.
+      _shownBaseUnit = _baseUnit;
+      _setBasePrice(null);
+    }
+    if (base != null && base.amount > 0) {
+      if (_basePrice != null) {
+        _price.text = formatCentsInput((_basePrice! * base.amount).round());
+      } else if (parseCents(_price.text) case final cents?) {
+        _setBasePrice(cents / base.amount);
+      }
+    }
+    setState(() {});
+  }
+
+  /// Grundeinheit, zu der [_basePrice] gehört.
+  late String _shownBaseUnit;
+
+  @override
+  void initState() {
+    super.initState();
+    _shownBaseUnit = _baseUnit;
+  }
+
+  void _priceChanged(String text) {
+    final cents = parseCents(text);
+    final base = _base;
+    if (cents == null) {
+      _setBasePrice(null);
+    } else if (base != null && base.amount > 0) {
+      _setBasePrice(cents / base.amount);
+    }
+  }
+
+  void _basePriceChanged(String text) {
+    _basePrice = parseCents(text);
+    final base = _base;
+    if (_basePrice != null && base != null) {
+      _price.text = formatCentsInput((_basePrice! * base.amount).round());
+    }
+  }
+
+  void _setBasePrice(num? cents) {
+    _basePrice = cents;
+    _basePriceText.text = cents == null ? '' : formatCentsInput(cents);
   }
 
   void _save() {
     final e = widget.entry;
     final group = widget.session.group;
     final note = _note.text.trim();
+    final packSize = _packSizeValue;
     final fields = <String, Object?>{
       'quantity': parseNumber(_quantity.text),
-      'unit': _unit,
+      // Packung ist der Standard; nicht extra speichern.
+      'unit': _unit == Units.pack && e.unit == null ? null : _unit,
+      'packSize': packSize,
+      'packUnit': packSize == null ? null : _packUnit,
       'note': note.isEmpty ? null : note,
       'price': parseCents(_price.text),
+      'basePrice': _basePrice,
     };
-    fields.removeWhere(
-      (k, v) => switch (k) {
-        'quantity' => v == e.quantity,
-        'unit' => v == e.unit,
-        'note' => v == e.note,
-        _ => v == e.price,
-      },
-    );
+    final old = <String, Object?>{
+      'quantity': e.quantity,
+      'unit': e.unit,
+      'packSize': e.packSize,
+      'packUnit': e.packUnit,
+      'note': e.note,
+      'price': e.price,
+      'basePrice': e.basePrice,
+    };
+    fields.removeWhere((k, v) => v == old[k]);
     if (fields.isNotEmpty) {
       widget.session.apply(group.updateEntry(e.listId, e.articleId, fields));
+    }
+    // Packungsgröße am Artikel merken, fürs nächste Mal.
+    final article = group.article(e.articleId);
+    if (packSize != null &&
+        article != null &&
+        (article.packSize != packSize || article.packUnit != _packUnit)) {
+      widget.session.apply(
+        group.updateArticle(article.id, {
+          'packSize': packSize,
+          'packUnit': _packUnit,
+        }),
+      );
     }
     final privateNote = _privateNote.text.trim();
     if (privateNote != (widget.session.private.note(e.id) ?? '')) {
@@ -139,34 +252,108 @@ class _EntrySheetState extends State<_EntrySheet> {
                       labelText: 'Menge',
                       border: OutlineInputBorder(),
                     ),
+                    onChanged: (_) => _amountChanged(),
                   ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: UnitField(
                     value: _unit,
-                    onChanged: (u) => setState(() => _unit = u),
+                    allowNone: false,
+                    onChanged: (u) {
+                      _unit = u ?? Units.pack;
+                      _amountChanged();
+                    },
                   ),
                 ),
               ],
             ),
             const SizedBox(height: 12),
-            TextField(
-              controller: _price,
-              keyboardType: const TextInputType.numberWithOptions(
-                decimal: true,
+            if (Units.isCount(_unit)) ...[
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _packSize,
+                      keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true,
+                      ),
+                      decoration: InputDecoration(
+                        labelText: 'Inhalt je ${unitLabel(_unit)}',
+                        hintText: 'optional',
+                        border: const OutlineInputBorder(),
+                      ),
+                      onChanged: (_) => _amountChanged(),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: UnitField(
+                      value: _packUnit,
+                      units: Units.measures,
+                      allowNone: false,
+                      onChanged: (u) {
+                        _packUnit = u ?? Units.gram;
+                        _amountChanged();
+                      },
+                    ),
+                  ),
+                ],
               ),
-              decoration: InputDecoration(
-                labelText: 'Preis (€) für diese Menge',
-                helperText: last == null
-                    ? null
-                    : 'Zuletzt: ${formatCents(last.cents)}'
-                          '${last.quantity == null ? '' : ' für ${formatQuantity(last.quantity, last.unit)}'}'
-                          ' am ${formatDate(last.millis)}'
-                          '${last.shopId == null ? '' : ' bei ${group.shop(last.shopId!)?.name ?? '?'}'}',
-                border: const OutlineInputBorder(),
-              ),
+            ],
+            const SizedBox(height: 12),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _price,
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
+                    decoration: const InputDecoration(
+                      labelText: 'Preis (€)',
+                      helperText: 'für diese Menge',
+                      border: OutlineInputBorder(),
+                    ),
+                    onChanged: _priceChanged,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: TextField(
+                    controller: _basePriceText,
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
+                    decoration: InputDecoration(
+                      labelText: '€/${unitLabel(_baseUnit)}',
+                      helperText: 'Grundpreis',
+                      border: const OutlineInputBorder(),
+                    ),
+                    onChanged: _basePriceChanged,
+                  ),
+                ),
+              ],
             ),
+            if (last != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 8, left: 4),
+                child: Text(
+                  [
+                    'Zuletzt: ${formatCents(last.cents)}',
+                    if (last.quantity != null)
+                      'für ${formatAmount(quantity: last.quantity, unit: last.unit, packSize: last.packSize, packUnit: last.packUnit)}',
+                    if (last.basePriceCents case final b?)
+                      '(${formatBasePrice(b, last.base!.unit)})',
+                    'am ${formatDate(last.millis)}',
+                    if (last.shopId != null)
+                      'bei ${group.shop(last.shopId!)?.name ?? '?'}',
+                  ].join(' '),
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+              ),
             const SizedBox(height: 12),
             TextField(
               controller: _note,

@@ -10,11 +10,15 @@ class UnitField extends StatelessWidget {
     required this.value,
     required this.onChanged,
     this.label = 'Einheit',
+    this.units = Units.all,
+    this.allowNone = true,
   });
 
   final String? value;
   final ValueChanged<String?> onChanged;
   final String label;
+  final List<String> units;
+  final bool allowNone;
 
   @override
   Widget build(BuildContext context) => DropdownButtonFormField<String?>(
@@ -24,8 +28,8 @@ class UnitField extends StatelessWidget {
       border: const OutlineInputBorder(),
     ),
     items: [
-      const DropdownMenuItem(child: Text('–')),
-      for (final u in Units.all)
+      if (allowNone) const DropdownMenuItem(child: Text('–')),
+      for (final u in units)
         DropdownMenuItem(value: u, child: Text(unitLabel(u))),
     ],
     onChanged: onChanged,
