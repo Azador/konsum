@@ -44,8 +44,9 @@ class MatrixService extends ChangeNotifier {
     try {
       final client = Client(
         'Konsum',
+        // Lücken in der Timeline behandelt MatrixGroupSync selbst
+        // (Schnappschuss-Anfrage), daher kein automatisches Nachladen.
         database: await openMatrixDatabase('konsum_matrix'),
-        requestHistoryOnLimitedTimeline: true,
       );
       _client = client;
       await client.init(waitForFirstSync: false);

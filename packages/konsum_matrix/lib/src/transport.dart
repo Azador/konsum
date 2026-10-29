@@ -22,6 +22,10 @@ abstract interface class RoomTransport {
   /// Neue Timeline-Ereignisse des Raums (auch die eigenen).
   Stream<RoomEvent> get events;
 
+  /// Meldet, wenn der Server nicht alle verpassten Ereignisse geliefert hat
+  /// (Lücke in der Timeline, z. B. nach langer Offline-Zeit).
+  Stream<void> get gaps;
+
   /// Verschickt ein Timeline-Ereignis. Wirft bei Fehlern.
   Future<void> send(String type, Map<String, Object?> content);
 

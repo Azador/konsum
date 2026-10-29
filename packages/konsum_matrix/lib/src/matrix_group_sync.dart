@@ -15,6 +15,8 @@ import 'transport.dart';
 ///   ihn unaufgefordert. Damit nicht alle gleichzeitig antworten, wartet
 ///   jedes Gerät eine zufällige Zeit und antwortet nicht, wenn inzwischen
 ///   ein anderes geantwortet hat.
+/// - Hat der Server nach langer Offline-Zeit nicht alle Ereignisse geliefert
+///   (Lücke), fragt das Gerät ebenfalls nach dem vollständigen Stand.
 /// - Private Daten liegen in der Room Account Data des Benutzers.
 class MatrixGroupSync implements GroupSync {
   MatrixGroupSync(
@@ -24,6 +26,7 @@ class MatrixGroupSync implements GroupSync {
   }) : _random = random ?? math.Random() {
     _subscriptions
       ..add(_transport.events.listen(_onEvent))
+      ..add(_transport.gaps.listen((_) => _requestSnapshot()))
       ..add(
         _transport.accountDataUpdates.listen((update) {
           if (update.$1 == KonsumEvents.private) {
@@ -63,16 +66,18 @@ class MatrixGroupSync implements GroupSync {
   Future<void> _start() async {
     final private = _transport.accountData(KonsumEvents.private);
     if (private != null) _incomingPrivate.add(decodeChanges(private));
-    if (_snapshot().isEmpty) {
-      try {
-        await _transport.send(KonsumEvents.snapshotRequest, {
-          'v': KonsumEvents.version,
-          'device': _transport.deviceId,
-        });
-      } catch (_) {
-        // Offline: Antworten kommen dann über einen späteren Beitritt
-        // oder die nächste Anfrage.
-      }
+    if (_snapshot().isEmpty) await _requestSnapshot();
+  }
+
+  Future<void> _requestSnapshot() async {
+    try {
+      await _transport.send(KonsumEvents.snapshotRequest, {
+        'v': KonsumEvents.version,
+        'device': _transport.deviceId,
+      });
+    } catch (_) {
+      // Offline: Antworten kommen dann über einen späteren Beitritt
+      // oder die nächste Anfrage.
     }
   }
 

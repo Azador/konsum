@@ -37,11 +37,15 @@ class FakeTransport implements RoomTransport {
   @override
   final String deviceId;
   final _events = StreamController<RoomEvent>.broadcast(sync: true);
+  final gapController = StreamController<void>.broadcast(sync: true);
   final _accountUpdates =
       StreamController<(String, Map<String, Object?>)>.broadcast(sync: true);
 
   @override
   Stream<RoomEvent> get events => _events.stream;
+
+  @override
+  Stream<void> get gaps => gapController.stream;
 
   @override
   Future<void> send(String type, Map<String, Object?> content) async {
@@ -76,10 +80,13 @@ class FakeTransport implements RoomTransport {
 /// Ein Gerät mit Gruppe und Sync, wie die App es zusammensteckt.
 class Device {
   Device(FakeRoom room, String user, String device, {int seed = 0})
+    : this._(room.connect(user, device), device, seed);
+
+  Device._(this.transport, String device, int seed)
     : group = Group(HlcClock(device)),
       private = PrivateData(HlcClock(device)),
       sync = MatrixGroupSync(
-        room.connect(user, device),
+        transport,
         random: math.Random(seed),
         maxReplyDelay: const Duration(milliseconds: 50),
       ) {
@@ -88,6 +95,7 @@ class Device {
     sync.snapshotProvider = group.replica.snapshot;
   }
 
+  final FakeTransport transport;
   final Group group;
   final PrivateData private;
   final MatrixGroupSync sync;
@@ -191,6 +199,23 @@ void main() {
     final tablet = Device(room, '@alice:x', 'A3');
     await settle();
     expect(tablet.private.note('l/a'), 'nur Bio');
+  });
+
+  test('Lücke nach Offline-Zeit: Gerät holt den vollständigen Stand', () async {
+    final room = FakeRoom();
+    final alice = Device(room, '@alice:x', 'A1', seed: 1);
+    final bob = Device(room, '@bob:x', 'B1', seed: 2);
+    await settle();
+    await alice.run(alice.group.createList('Familie').changes);
+
+    // Änderung, die Bob „verpasst“ (nicht zugestellt).
+    final missed = alice.group.createArticle('Brot').changes;
+    expect(bob.group.articles, isEmpty);
+
+    bob.transport.gapController.add(null);
+    await settle();
+    expect(bob.group.articles.single.name, 'Brot');
+    expect(missed, isNotEmpty);
   });
 
   test('Offline: Senden wirft, Outbox behält die Änderungen', () async {

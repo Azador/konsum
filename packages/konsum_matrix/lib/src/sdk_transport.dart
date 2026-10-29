@@ -37,6 +37,11 @@ class SdkRoomTransport implements RoomTransport {
       );
 
   @override
+  Stream<void> get gaps => client.onSync.stream.where(
+    (sync) => sync.rooms?.join?[roomId]?.timeline?.limited ?? false,
+  );
+
+  @override
   Future<void> send(String type, Map<String, Object?> content) async {
     final id = await _room.sendEvent(
       content,
