@@ -45,6 +45,7 @@ void main() {
       );
       final info = (await off.lookup('8076800195057'))!;
       expect(requested.path, '/api/v2/product/8076800195057.json');
+      expect(requested.queryParameters['product_type'], 'all');
       expect(info.name, 'Spaghetti n.5', reason: 'leerer DE-Name zählt nicht');
       expect(info.brand, 'Barilla');
       expect(info.nutriments, {
@@ -52,6 +53,34 @@ void main() {
         'proteins': 12.5,
         'salt': 0.013,
       });
+    });
+
+    test('Kosmetik aus Open Beauty Facts', () async {
+      final off = OpenFoodFacts(
+        client: MockClient(
+          (_) async => http.Response(
+            jsonEncode({
+              'status': 1,
+              'product': {
+                'product_name': 'Shampooing',
+                'brands': 'Garnier',
+                'quantity': '250 ml',
+                'product_type': 'beauty',
+              },
+            }),
+            200,
+          ),
+        ),
+      );
+      final info = (await off.lookup('3600542525701'))!;
+      expect(info.name, 'Shampooing');
+      expect(info.productType, 'beauty');
+      expect(info.nutriments, isEmpty);
+      expect(
+        OpenFoodFacts.sourceOf(info.productType),
+        'Open Beauty Facts (ODbL)',
+      );
+      expect(OpenFoodFacts.sourceOf(null), 'Open Food Facts (ODbL)');
     });
 
     test('unbekanntes Produkt und ungültiger Code', () async {

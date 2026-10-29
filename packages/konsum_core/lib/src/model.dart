@@ -228,6 +228,7 @@ class ProductInfo {
     this.imageUrl,
     this.nutriments = const {},
     this.nutriScore,
+    this.productType,
   });
 
   final String? name;
@@ -243,6 +244,10 @@ class ProductInfo {
   final Map<String, num> nutriments;
   final String? nutriScore;
 
+  /// Art des Produkts bei Open Food Facts und seinen Schwester-Datenbanken:
+  /// `food`, `beauty`, `petfood` oder `product`.
+  final String? productType;
+
   Map<String, Object?> toJson() => {
     'name': name,
     'brand': brand,
@@ -250,6 +255,7 @@ class ProductInfo {
     'imageUrl': imageUrl,
     'nutriments': nutriments,
     'nutriScore': nutriScore,
+    'productType': productType,
   };
 
   factory ProductInfo.fromJson(Map<String, Object?> json) => ProductInfo(
@@ -262,5 +268,6 @@ class ProductInfo {
         if (e.value is num) e.key as String: e.value as num,
     },
     nutriScore: json['nutriScore'] as String?,
+    productType: json['productType'] as String?,
   );
 }

@@ -248,7 +248,8 @@ class _AssignDialogState extends State<_AssignDialog> {
               )
             else
               Text(
-                'Bei Open Food Facts nicht gefunden.',
+                'In Open Food Facts und den Schwester-Datenbanken nicht '
+                'gefunden.',
                 style: Theme.of(context).textTheme.bodySmall,
               ),
             const SizedBox(height: 12),

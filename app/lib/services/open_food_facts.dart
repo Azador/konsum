@@ -4,8 +4,11 @@ import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:konsum_core/konsum_core.dart';
 
-/// Produktdaten von Open Food Facts (https://world.openfoodfacts.org).
-/// Die Daten stehen unter der Open Database License (ODbL).
+/// Produktdaten von Open Food Facts (https://world.openfoodfacts.org) und
+/// seinen Schwester-Datenbanken für Kosmetik, Tierfutter und sonstige
+/// Produkte. Mit `product_type=all` leitet Open Food Facts selbst an die
+/// passende Datenbank weiter. Die Daten stehen unter der Open Database
+/// License (ODbL).
 class OpenFoodFacts {
   OpenFoodFacts({http.Client? client}) : _client = client ?? http.Client();
 
@@ -13,7 +16,19 @@ class OpenFoodFacts {
 
   static const _fields =
       'product_name,product_name_de,brands,quantity,'
-      'image_front_small_url,nutriments,nutriscore_grade';
+      'image_front_small_url,nutriments,nutriscore_grade,product_type';
+
+  /// Name der Datenbank je Produktart, für die Quellenangabe.
+  static const databases = {
+    'food': 'Open Food Facts',
+    'beauty': 'Open Beauty Facts',
+    'petfood': 'Open Pet Food Facts',
+    'product': 'Open Products Facts',
+  };
+
+  /// Quellenangabe für Produktdaten der Art [productType].
+  static String sourceOf(String? productType) =>
+      '${databases[productType] ?? databases['food']} (ODbL)';
 
   /// Nährwerte, die übernommen werden (je 100 g/ml).
   static const nutrimentKeys = [
@@ -35,7 +50,7 @@ class OpenFoodFacts {
     final uri = Uri.https(
       'world.openfoodfacts.org',
       '/api/v2/product/$code.json',
-      {'fields': _fields},
+      {'fields': _fields, 'product_type': 'all'},
     );
     final res = await _client
         .get(
@@ -65,6 +80,7 @@ class OpenFoodFacts {
       quantity: text('quantity'),
       imageUrl: text('image_front_small_url'),
       nutriScore: text('nutriscore_grade'),
+      productType: text('product_type'),
       nutriments: {
         if (nutriments is Map)
           for (final k in nutrimentKeys)

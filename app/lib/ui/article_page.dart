@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
+import '../services/open_food_facts.dart';
 import '../state/group_session.dart';
 import 'dialogs.dart';
 import 'format.dart';
@@ -253,8 +254,12 @@ class _BarcodeTile extends StatelessWidget {
       childrenPadding: const EdgeInsets.only(left: 40, bottom: 8),
       expandedCrossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        // Bei Kosmetik und sonstigen Produkten gibt es keine Nährwerte.
         if (info.nutriments.isEmpty)
-          const Text('Keine Nährwerte bekannt.')
+          if (info.productType case null || 'food' || 'petfood')
+            const Text('Keine Nährwerte bekannt.')
+          else
+            const SizedBox.shrink()
         else ...[
           const Text('Nährwerte je 100 g/ml'),
           for (final e in _nutrimentLabels.entries)
@@ -265,7 +270,7 @@ class _BarcodeTile extends StatelessWidget {
           Text('Nutri-Score: ${info.nutriScore!.toUpperCase()}'),
         const SizedBox(height: 4),
         Text(
-          'Daten: Open Food Facts (ODbL)',
+          'Daten: ${OpenFoodFacts.sourceOf(info.productType)}',
           style: Theme.of(context).textTheme.bodySmall,
         ),
       ],
