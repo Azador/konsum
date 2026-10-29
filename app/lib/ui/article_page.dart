@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../state/group_session.dart';
 import 'dialogs.dart';
 import 'format.dart';
+import 'price_dialog.dart';
 import 'scope.dart';
 import 'unit_field.dart';
 
@@ -131,6 +132,16 @@ class ArticlePage extends StatelessWidget {
           Row(
             children: [
               Expanded(child: Text('Preishistorie', style: heading)),
+              IconButton(
+                tooltip: 'Preis eintragen',
+                icon: const Icon(Icons.add),
+                onPressed: () => showPriceDialog(
+                  context,
+                  session,
+                  articleId,
+                  shopId: AppScope.of(context).shopFor(session),
+                ),
+              ),
               if (prices.isNotEmpty)
                 TextButton(
                   onPressed: () async {
