@@ -16,6 +16,10 @@ class FileStore implements KeyValueStore {
 
   final Directory dir;
 
+  /// Letzter Schreibvorgang je Schlüssel. Schreibvorgänge auf denselben
+  /// Schlüssel laufen nacheinander, sonst teilen sie sich die .tmp-Datei.
+  final _pending = <String, Future<void>>{};
+
   File _file(String key) => File('${dir.path}/$key.json');
 
   @override
@@ -25,7 +29,18 @@ class FileStore implements KeyValueStore {
   }
 
   @override
-  Future<void> write(String key, String value) async {
+  Future<void> write(String key, String value) {
+    final previous = _pending[key] ?? Future<void>.value();
+    final next = previous
+        .catchError((Object _) {})
+        .then((_) => _write(key, value));
+    _pending[key] = next;
+    return next.whenComplete(() {
+      if (identical(_pending[key], next)) _pending.remove(key);
+    });
+  }
+
+  Future<void> _write(String key, String value) async {
     await dir.create(recursive: true);
     final f = _file(key);
     final tmp = File('${f.path}.tmp');
