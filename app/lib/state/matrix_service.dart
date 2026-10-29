@@ -4,12 +4,35 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_vodozemac/flutter_vodozemac.dart' as vod;
 import 'package:konsum_matrix/konsum_matrix.dart';
 import 'package:matrix/matrix.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../storage/matrix_db.dart';
 import 'app_state.dart';
 import 'group_session.dart';
+import 'oidc_redirect.dart';
 
 const _backendType = 'matrix';
+
+/// Wie man sich an einem Server anmelden kann.
+class ServerLogin {
+  const ServerLogin({
+    required this.homeserver,
+    required this.browser,
+    required this.canRegister,
+    required this.password,
+  });
+
+  final Uri homeserver;
+
+  /// Anmeldung auf der Webseite des Servers (OIDC), z. B. matrix.org.
+  final bool browser;
+
+  /// Neues Konto über die Webseite des Servers.
+  final bool canRegister;
+
+  /// Klassische Anmeldung mit Passwort in der App.
+  final bool password;
+}
 
 /// Matrix-Konto der App: Anmeldung, Gruppen teilen, Einladungen annehmen,
 /// Gruppen mit ihrem Raum verbinden.
@@ -25,6 +48,10 @@ class MatrixService extends ChangeNotifier {
   StreamSubscription<Object?>? _syncSub;
   String? error;
   bool busy = false;
+
+  /// Läuft gerade eine Anmeldung im Browser?
+  bool waitingForBrowser = false;
+  Completer<Never>? _browserCancel;
 
   /// Ob Ende-zu-Ende-Verschlüsselung verfügbar ist. Im Web fehlt noch der
   /// WASM-Build von vodozemac.
@@ -73,30 +100,124 @@ class MatrixService extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Anmeldung mit Benutzername (oder vollständiger Matrix-ID) und Passwort.
-  /// Ohne Server-Angabe wird der Server aus der Matrix-ID ermittelt.
-  Future<bool> login({
-    required String homeserver,
-    required String user,
-    required String password,
-  }) => _run(() async {
+  /// Prüft den Server und ermittelt, wie man sich anmelden kann. [input] ist
+  /// ein Servername, eine Adresse oder eine Matrix-ID (`@name:server`).
+  Future<ServerLogin?> checkServer(String input) async {
+    ServerLogin? result;
+    await _run(() async {
+      final client = _client;
+      if (client == null) throw StateError(error ?? 'Matrix nicht verfügbar');
+      var server = input.trim();
+      if (server.startsWith('@') && server.contains(':')) {
+        server = server.substring(server.indexOf(':') + 1);
+      }
+      if (server.isEmpty) throw ArgumentError('Bitte Server angeben');
+      final uri = Uri.parse(
+        server.contains('://') ? server : 'https://$server',
+      );
+      final (_, _, loginTypes, authMetadata) = await client.checkHomeserver(
+        uri,
+      );
+      result = ServerLogin(
+        homeserver: client.homeserver!,
+        browser: authMetadata != null && browserLoginAvailable,
+        canRegister:
+            authMetadata != null &&
+            browserLoginAvailable &&
+            (authMetadata.promptValuesSupported?.contains('create') ?? false),
+        password: loginTypes.any((t) => t.type == LoginType.mLoginPassword),
+      );
+    });
+    return result;
+  }
+
+  /// Im Web fehlt dem SDK dafür noch vodozemac (WASM).
+  bool get browserLoginAvailable => !kIsWeb;
+
+  /// Anmeldung mit Benutzername (oder vollständiger Matrix-ID) und Passwort
+  /// an dem Server aus [checkServer].
+  Future<bool> login({required String user, required String password}) =>
+      _run(() async {
+        final client = _client;
+        if (client == null || client.homeserver == null) {
+          throw StateError('Bitte zuerst den Server prüfen');
+        }
+        await client.login(
+          LoginType.mLoginPassword,
+          identifier: AuthenticationUserIdentifier(user: user.trim()),
+          password: password,
+          initialDeviceDisplayName: 'Konsum ${defaultTargetPlatform.name}',
+        );
+        await connectAll();
+      });
+
+  /// Anmeldung oder Registrierung ([register]) auf der Webseite des Servers
+  /// aus [checkServer]. Öffnet den Browser und wartet auf die Rückkehr.
+  Future<bool> loginWithBrowser({bool register = false}) => _run(() async {
     final client = _client;
-    if (client == null) throw StateError(error ?? 'Matrix nicht verfügbar');
-    var server = homeserver.trim();
-    if (server.isEmpty && user.contains(':')) {
-      server = user.substring(user.indexOf(':') + 1);
+    if (client == null || client.homeserver == null) {
+      throw StateError('Bitte zuerst den Server prüfen');
     }
-    if (server.isEmpty) throw ArgumentError('Bitte Server angeben');
-    final uri = Uri.parse(server.contains('://') ? server : 'https://$server');
-    await client.checkHomeserver(uri);
-    await client.login(
-      LoginType.mLoginPassword,
-      identifier: AuthenticationUserIdentifier(user: user.trim()),
-      password: password,
-      initialDeviceDisplayName: 'Konsum ${defaultTargetPlatform.name}',
-    );
-    await connectAll();
+    final redirect = await openOidcRedirect();
+    if (redirect == null) {
+      throw UnsupportedError('Anmeldung im Browser geht hier noch nicht');
+    }
+    final cancel = _browserCancel = Completer<Never>();
+    waitingForBrowser = true;
+    notifyListeners();
+    try {
+      final clientData = await client.registerOidcClient(
+        redirectUris: [redirect.redirectUri],
+        applicationType: OidcApplicationType.native,
+        clientInformation: OidcClientInformation(
+          clientName: 'Konsum',
+          // Der Host muss das umgekehrte App-Schema sein (de.azador.konsum).
+          clientUri: Uri.parse('https://konsum.azador.de'),
+          logoUri: null,
+          tosUri: null,
+          policyUri: null,
+        ),
+      );
+      final session = await client.initOidcLoginSession(
+        oidcClientData: clientData,
+        redirectUri: redirect.redirectUri,
+        prompt: register ? 'create' : null,
+      );
+      final opened = await launchUrl(
+        session.authenticationUri,
+        mode: LaunchMode.externalApplication,
+      );
+      if (!opened) throw StateError('Browser konnte nicht geöffnet werden');
+      final result = await Future.any([redirect.wait(), cancel.future]);
+      final params = result.queryParameters;
+      final failure = params['error'];
+      if (failure != null) {
+        throw StateError(
+          failure == 'access_denied'
+              ? 'Anmeldung abgebrochen'
+              : params['error_description'] ?? failure,
+        );
+      }
+      await client.oidcLogin(
+        session: session,
+        code: params['code'] ?? '',
+        state: params['state'] ?? '',
+      );
+      await connectAll();
+    } finally {
+      waitingForBrowser = false;
+      _browserCancel = null;
+      await redirect.close();
+    }
   });
+
+  /// Bricht das Warten auf den Browser ab.
+  void cancelBrowserLogin() {
+    final cancel = _browserCancel;
+    if (cancel != null && !cancel.isCompleted) {
+      cancel.completeError(StateError('Anmeldung abgebrochen'));
+    }
+  }
 
   Future<bool> logout() => _run(() async {
     for (final g in _app.groups) {
@@ -169,7 +290,14 @@ class MatrixService extends ChangeNotifier {
       await action();
       return true;
     } catch (e) {
-      error = e is MatrixException ? e.errorMessage : '$e';
+      error = switch (e) {
+        MatrixException() => e.errorMessage,
+        OidcException() => e.errorDescription ?? e.error,
+        StateError() => e.message,
+        UnsupportedError() => e.message ?? '$e',
+        ArgumentError() => '${e.message}',
+        _ => '$e',
+      };
       return false;
     } finally {
       busy = false;

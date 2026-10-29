@@ -167,11 +167,20 @@ Quelle nennen.
   AGPL-Bedingungen (GPL-3 §13). Für ein offenes Projekt unproblematisch
   (2026-10-29)
 
+- Anmeldung und neue Konten über die Webseite des Servers (OIDC, MSC2964/
+  MSC2966), wo der Server das anbietet (z. B. matrix.org); sonst Passwort.
+  Rückweg: Android `de.azador.konsum:/oauth`, Linux `http://127.0.0.1:<Port>`.
+  Die Client-Adresse muss dazu `https://konsum.azador.de` sein (umgekehrtes
+  App-Schema); sie wird auf der Anmeldeseite angezeigt (2026-10-29)
+
 ## Offene Punkte
 
 - Verschlüsselung im Web: WASM-Build von vodozemac
   (`flutter_rust_bridge_codegen`, `wasm-pack`). Bis dahin kann die Web-App
   verschlüsselte Gruppen nicht lesen
 - Geräte-Verifizierung, Schlüssel-Backup
+- Anmeldung im Browser auch in der Web-App (braucht vodozemac als WASM)
+- Unter `https://konsum.azador.de` eine kleine Projektseite (wird bei der
+  Anmeldung als Adresse der App angezeigt)
 - Live-Test mit echtem Matrix-Server
 - Web-App: localStorage (ca. 5 MB) ggf. durch IndexedDB ersetzen
