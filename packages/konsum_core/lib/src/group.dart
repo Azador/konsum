@@ -90,8 +90,11 @@ class Group {
           articleId: articleId,
           quantity: f['quantity'] as num?,
           unit: f['unit'] as String?,
+          packSize: f['packSize'] as num?,
+          packUnit: f['packUnit'] as String?,
           note: f['note'] as String?,
           price: f['price'] as int?,
+          basePrice: f['basePrice'] as num?,
           checked: f['checked'] == true,
         ),
       );
@@ -138,6 +141,8 @@ class Group {
               millis: f['millis'] as int,
               quantity: f['quantity'] as num?,
               unit: f['unit'] as String?,
+              packSize: f['packSize'] as num?,
+              packUnit: f['packUnit'] as String?,
               shopId: f['shopId'] as String?,
             ),
     ];
@@ -155,14 +160,19 @@ class Group {
     return any.isEmpty ? null : any.first;
   }
 
-  /// Preis eines Eintrags in Cent: der eingetragene Preis oder, falls keiner
-  /// eingetragen ist, eine Schätzung aus dem letzten Preis bei gleicher
-  /// Einheit. Null, wenn nichts bekannt ist.
+  /// Preis eines Eintrags in Cent: der eingetragene bzw. umgerechnete Preis
+  /// oder, falls keiner eingetragen ist, eine Schätzung aus dem letzten
+  /// Preis je Grundeinheit (kg, l, Stück, …). Null, wenn nichts bekannt ist.
   int? estimatedPrice(ListEntry entry, {String? shopId}) {
-    if (entry.price != null) return entry.price;
+    final own = entry.totalCents;
+    if (own != null) return own;
     final last = lastPrice(entry.articleId, shopId: shopId);
-    if (last == null || last.unit != entry.unit) return null;
-    return (last.unitCents * (entry.quantity ?? 1)).round();
+    final lastBase = last?.basePriceCents;
+    final base = entry.base;
+    if (lastBase == null || base == null || last!.base!.unit != base.unit) {
+      return null;
+    }
+    return (lastBase * base.amount).round();
   }
 
   /// Summe der (geschätzten) Preise der offenen Einträge einer Liste.
@@ -207,6 +217,8 @@ class Group {
     String name, {
     String? categoryId,
     String? defaultUnit,
+    num? packSize,
+    String? packUnit,
   }) {
     final id = _newId();
     return (
@@ -215,6 +227,8 @@ class Group {
         'name': name,
         'categoryId': categoryId,
         'defaultUnit': defaultUnit,
+        'packSize': packSize,
+        'packUnit': packUnit,
         deletedField: false,
       }),
     );
@@ -302,26 +316,33 @@ class Group {
   ];
 
   /// Setzt einen Artikel auf die Liste. Steht er schon darauf (oder stand
-  /// er früher darauf), wird der Eintrag neu gesetzt.
+  /// er früher darauf), wird der Eintrag neu gesetzt. Einheit und
+  /// Packungsgröße kommen, wenn nicht angegeben, vom Artikel.
   List<Change> addToList(
     String listId,
     String articleId, {
     num? quantity,
     String? unit,
     String? note,
-  }) => _write(Types.entry, ListEntry.entryId(listId, articleId), {
-    'listId': listId,
-    'articleId': articleId,
-    'quantity': quantity,
-    'unit': unit ?? article(articleId)?.defaultUnit,
-    'note': note,
-    'price': null,
-    'checked': false,
-    deletedField: false,
-  });
+  }) {
+    final a = article(articleId);
+    return _write(Types.entry, ListEntry.entryId(listId, articleId), {
+      'listId': listId,
+      'articleId': articleId,
+      'quantity': quantity,
+      'unit': unit ?? a?.defaultUnit,
+      'packSize': a?.packSize,
+      'packUnit': a?.packUnit,
+      'note': note,
+      'price': null,
+      'basePrice': null,
+      'checked': false,
+      deletedField: false,
+    });
+  }
 
-  /// Ändert einzelne Felder eines Eintrags (`quantity`, `unit`, `note`,
-  /// `price`).
+  /// Ändert einzelne Felder eines Eintrags (`quantity`, `unit`, `packSize`,
+  /// `packUnit`, `note`, `price`, `basePrice`).
   List<Change> updateEntry(
     String listId,
     String articleId,
@@ -352,13 +373,15 @@ class Group {
           'shopId': shopId,
         }),
       );
-      if (e.price != null) {
+      if (e.totalCents case final cents?) {
         changes.addAll(
           recordPrice(
             e.articleId,
-            e.price!,
+            cents,
             quantity: e.quantity,
             unit: e.unit,
+            packSize: Units.isCount(e.unit) ? e.packSize : null,
+            packUnit: Units.isCount(e.unit) ? e.packUnit : null,
             shopId: shopId,
           ).changes,
         );
@@ -374,6 +397,8 @@ class Group {
     int cents, {
     num? quantity,
     String? unit,
+    num? packSize,
+    String? packUnit,
     String? shopId,
   }) {
     final id = _newId();
@@ -384,6 +409,8 @@ class Group {
         'cents': cents,
         'quantity': quantity,
         'unit': unit,
+        'packSize': packSize,
+        'packUnit': packUnit,
         'shopId': shopId,
         'millis': clock.tick().millis,
       }),
@@ -425,6 +452,8 @@ class Group {
           name: f['name'] as String? ?? '',
           categoryId: f['categoryId'] as String?,
           defaultUnit: f['defaultUnit'] as String?,
+          packSize: f['packSize'] as num?,
+          packUnit: f['packUnit'] as String?,
         );
 
   Shop? _shop(String id) {

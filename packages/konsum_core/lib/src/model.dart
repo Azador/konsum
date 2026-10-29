@@ -1,3 +1,5 @@
+import 'amount.dart';
+
 /// Objekttypen, wie sie in [Change.type] stehen.
 abstract final class Types {
   static const article = 'article';
@@ -33,6 +35,15 @@ abstract final class Units {
     bottle,
     bunch,
   ];
+
+  /// Gewicht und Volumen; alles andere sind Zähleinheiten.
+  static const measures = [gram, kilogram, millilitre, litre];
+
+  static bool isMeasure(String? unit) => measures.contains(unit);
+
+  /// Zähleinheit (Stück, Packung, …), für die eine Packungsgröße passt.
+  /// Ohne Einheit gilt Packung.
+  static bool isCount(String? unit) => !isMeasure(unit);
 }
 
 class Article {
@@ -41,12 +52,18 @@ class Article {
     required this.name,
     this.categoryId,
     this.defaultUnit,
+    this.packSize,
+    this.packUnit,
   });
 
   final String id;
   final String name;
   final String? categoryId;
   final String? defaultUnit;
+
+  /// Übliche Packungsgröße, z. B. 500 g; wird beim Hinzufügen übernommen.
+  final num? packSize;
+  final String? packUnit;
 }
 
 class Category {
@@ -85,25 +102,62 @@ class ListEntry {
     required this.articleId,
     this.quantity,
     this.unit,
+    this.packSize,
+    this.packUnit,
     this.note,
     this.price,
+    this.basePrice,
     this.checked = false,
   });
 
   final String listId;
   final String articleId;
   final num? quantity;
+
+  /// Einheit der Menge; ohne Einheit gilt Packung.
   final String? unit;
+
+  /// Inhalt einer Packung (eines Stücks, …) in g/kg/ml/l, nur bei
+  /// Zähleinheiten.
+  final num? packSize;
+  final String? packUnit;
 
   /// Notiz für alle in der Gruppe. Private Notizen liegen getrennt
   /// beim jeweiligen Benutzer.
   final String? note;
 
-  /// Preis für diesen Eintrag in Cent (für die eingetragene Menge).
+  /// Eingetragener Preis in Cent für die Menge. Gilt nur, solange kein
+  /// [basePrice] umgerechnet werden kann, siehe [totalCents].
   final int? price;
+
+  /// Preis in Cent je Grundeinheit (kg, l, Stück, Packung, …).
+  final num? basePrice;
   final bool checked;
 
   String get id => entryId(listId, articleId);
+
+  /// Menge in der Grundeinheit, siehe [baseAmount].
+  BaseAmount? get base => baseAmount(
+    quantity: quantity,
+    unit: unit,
+    packSize: Units.isCount(unit) ? packSize : null,
+    packUnit: packUnit,
+  );
+
+  /// Preis für die Menge: aus dem Grundpreis berechnet, wenn möglich, sonst
+  /// der eingetragene Preis.
+  int? get totalCents {
+    final b = base;
+    if (basePrice != null && b != null) return (basePrice! * b.amount).round();
+    return price;
+  }
+
+  /// Preis je Grundeinheit: eingetragen oder aus dem Preis berechnet.
+  num? get basePriceCents {
+    if (basePrice != null) return basePrice;
+    final p = price;
+    return p == null ? null : pricePerBase(p, base);
+  }
 
   static String entryId(String listId, String articleId) =>
       '$listId/$articleId';
@@ -137,6 +191,8 @@ class PricePoint {
     required this.millis,
     this.quantity,
     this.unit,
+    this.packSize,
+    this.packUnit,
     this.shopId,
   });
 
@@ -148,11 +204,19 @@ class PricePoint {
   final int millis;
   final num? quantity;
   final String? unit;
+  final num? packSize;
+  final String? packUnit;
   final String? shopId;
 
-  /// Preis für eine Einheit [unit].
-  double get unitCents =>
-      cents / (quantity == null || quantity == 0 ? 1 : quantity!);
+  BaseAmount? get base => baseAmount(
+    quantity: quantity,
+    unit: unit,
+    packSize: Units.isCount(unit) ? packSize : null,
+    packUnit: packUnit,
+  );
+
+  /// Preis in Cent je Grundeinheit, falls berechenbar.
+  double? get basePriceCents => pricePerBase(cents, base);
 }
 
 /// Produktdaten zu einem Barcode, z. B. von Open Food Facts.

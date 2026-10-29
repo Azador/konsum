@@ -1,6 +1,7 @@
 /// Datenmodell und Konfliktauflösung für Konsum.
 library;
 
+export 'src/amount.dart';
 export 'src/group.dart';
 export 'src/hlc.dart';
 export 'src/memory_sync.dart';

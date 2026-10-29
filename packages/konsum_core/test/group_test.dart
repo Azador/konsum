@@ -189,7 +189,7 @@ void main() {
       expect(p.cents, 258);
       expect(p.quantity, 2);
       expect(p.shopId, famila);
-      expect(p.unitCents, 129);
+      expect(p.basePriceCents, 129);
       expect(s.alice.purchases.single.shopId, famila);
     });
 
@@ -228,6 +228,59 @@ void main() {
       final e = s.alice.entries(listId).single;
       expect(s.alice.estimatedPrice(e), isNull);
       expect(s.alice.listTotal(listId), (cents: 0, unknown: 1));
+    });
+
+    test('Grundpreis: Preis folgt der Menge', () {
+      s.alice.addToList(listId, spaghetti, quantity: 100, unit: Units.gram);
+      // 2,49 €/kg eingetragen → 100 g kosten 25 ct.
+      s.alice.updateEntry(listId, spaghetti, {'basePrice': 249});
+      var e = s.alice.entries(listId).single;
+      expect(e.totalCents, 25);
+      s.alice.updateEntry(listId, spaghetti, {'quantity': 200});
+      e = s.alice.entries(listId).single;
+      expect(e.totalCents, 50);
+      expect(e.basePriceCents, 249);
+    });
+
+    test('Grundpreis aus dem Preis, wenn nur der Preis bekannt ist', () {
+      s.alice.addToList(listId, spaghetti, quantity: 250, unit: Units.gram);
+      s.alice.updateEntry(listId, spaghetti, {'price': 100});
+      final e = s.alice.entries(listId).single;
+      expect(e.totalCents, 100);
+      expect(e.basePriceCents, 400);
+      expect(e.base, (amount: 0.25, unit: Units.kilogram));
+    });
+
+    test('Packungsgröße: vom Artikel übernommen, Preis je kg', () {
+      s.alice.updateArticle(spaghetti, {'packSize': 500, 'packUnit': 'g'});
+      s.alice.addToList(listId, spaghetti, quantity: 3);
+      var e = s.alice.entries(listId).single;
+      expect(e.packSize, 500);
+      expect(e.base, (amount: 1.5, unit: Units.kilogram));
+      s.alice.updateEntry(listId, spaghetti, {'price': 297});
+      e = s.alice.entries(listId).single;
+      expect(e.basePriceCents, 198);
+
+      // Die Packungsgröße wandert mit in die Historie; geschätzt wird
+      // später über den Kilopreis, auch für lose Ware in Gramm.
+      s.alice.setChecked(listId, spaghetti, true);
+      s.alice.clearChecked(listId);
+      final p = s.alice.priceHistory().single;
+      expect(p.packSize, 500);
+      expect(p.basePriceCents, 198);
+      s.alice.addToList(listId, spaghetti, quantity: 250, unit: Units.gram);
+      expect(s.alice.estimatedPrice(s.alice.entries(listId).single), 50);
+    });
+
+    test('Ohne Einheit gilt Packung', () {
+      s.alice.recordPrice(spaghetti, 129, quantity: 1, unit: Units.pack);
+      final milch = s.alice.createArticle('Milch').id;
+      s.alice.addToList(listId, milch, quantity: 2);
+      final e = s.alice.entries(listId).single;
+      expect(e.unit, isNull);
+      expect(e.base, (amount: 2, unit: Units.pack));
+      s.alice.updateEntry(listId, milch, {'price': 198});
+      expect(s.alice.entries(listId).single.basePriceCents, 99);
     });
 
     test('Historie löschen: einzeln, je Artikel, je Laden, komplett', () {
