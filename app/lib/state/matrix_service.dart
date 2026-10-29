@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter_vodozemac/flutter_vodozemac.dart' as vod;
 import 'package:konsum_matrix/konsum_matrix.dart';
 import 'package:matrix/matrix.dart';
 
@@ -25,6 +26,10 @@ class MatrixService extends ChangeNotifier {
   String? error;
   bool busy = false;
 
+  /// Ob Ende-zu-Ende-Verschlüsselung verfügbar ist. Im Web fehlt noch der
+  /// WASM-Build von vodozemac.
+  bool get encryptionEnabled => _client?.encryptionEnabled ?? false;
+
   Client? get client => _client;
   bool get isLoggedIn => _client?.isLogged() ?? false;
   String? get userId => _client?.userID;
@@ -42,11 +47,21 @@ class MatrixService extends ChangeNotifier {
   /// verhindern den App-Start nicht.
   Future<void> init() async {
     try {
+      if (!kIsWeb) {
+        try {
+          await vod.init();
+        } catch (e) {
+          debugPrint('Verschlüsselung nicht verfügbar: $e');
+        }
+      }
       final client = Client(
         'Konsum',
-        // Lücken in der Timeline behandelt MatrixGroupSync selbst
-        // (Schnappschuss-Anfrage), daher kein automatisches Nachladen.
         database: await openMatrixDatabase('konsum_matrix'),
+        // Konsum-Ereignisse verschicken nur Konsum-Geräte, und die können
+        // (noch) nicht verifizieren. Mit der Standardeinstellung bekämen
+        // Konsum-Geräte von Konten mit Cross-Signing (z. B. durch Element)
+        // keine Schlüssel und könnten nichts entschlüsseln.
+        shareKeysWith: ShareKeysWith.all,
       );
       _client = client;
       await client.init(waitForFirstSync: false);
@@ -138,6 +153,10 @@ class MatrixService extends ChangeNotifier {
     await _groups!.leave(_roomId(session));
     await _app.removeGroup(session);
   });
+
+  /// Ob der Raum der Gruppe Ende-zu-Ende-verschlüsselt ist (null: unbekannt).
+  bool? isEncrypted(GroupSession session) =>
+      _client?.getRoomById(_roomId(session))?.encrypted;
 
   String _roomId(GroupSession session) =>
       session.info.backend!['roomId'] as String;

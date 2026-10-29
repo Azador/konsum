@@ -154,10 +154,14 @@ Quelle nennen.
 - HTTPS im LAN über Caddy mit lokaler CA (2026-10-29)
 - Ein Matrix-Konto pro App-Installation; Gruppen auf anderen Servern über
   Föderation (2026-10-29)
-- Ende-zu-Ende-Verschlüsselung vorerst aus: Die Bibliothek (vodozemac) muss
-  aus Rust gebaut werden, Rust ist noch nicht installiert. Neue Räume werden
-  daher unverschlüsselt angelegt; Verschlüsselung lässt sich je Raum später
-  einschalten (nicht umkehrbar) (2026-10-29)
+- Ende-zu-Ende-Verschlüsselung in den nativen Apps (Linux, Android) über
+  `flutter_vodozemac`; der Build braucht `rustup`. Neue Gruppen werden
+  verschlüsselt angelegt, wenn das Gerät verschlüsseln kann. Schlüssel gehen an
+  alle Geräte der Mitglieder, auch unverifizierte (`ShareKeysWith.all`), weil
+  Konsum noch keine Geräte-Verifizierung hat. Private Notizen liegen in der
+  Room Account Data, die Matrix nicht verschlüsselt (2026-10-29)
+- Ereignisse, deren Schlüssel nach 2 Minuten noch fehlt, gelten als Lücke und
+  werden per Schnappschuss nachgeholt (2026-10-29)
 - Das Matrix-SDK (`matrix`, Famedly) steht unter AGPL-3.0. Unser Code bleibt
   GPL-3.0; die ausgelieferte App als Ganzes unterliegt damit zusätzlich den
   AGPL-Bedingungen (GPL-3 §13). Für ein offenes Projekt unproblematisch
@@ -165,7 +169,9 @@ Quelle nennen.
 
 ## Offene Punkte
 
-- Rust installieren und Ende-zu-Ende-Verschlüsselung einschalten
-  (`flutter_vodozemac`; fürs Web zusätzlich WASM-Build)
+- Verschlüsselung im Web: WASM-Build von vodozemac
+  (`flutter_rust_bridge_codegen`, `wasm-pack`). Bis dahin kann die Web-App
+  verschlüsselte Gruppen nicht lesen
+- Geräte-Verifizierung, Schlüssel-Backup
 - Live-Test mit echtem Matrix-Server
 - Web-App: localStorage (ca. 5 MB) ggf. durch IndexedDB ersetzen

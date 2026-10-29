@@ -120,9 +120,10 @@ class _MatrixSectionState extends State<_MatrixSection> {
       return ListTile(
         leading: const Icon(Icons.share_outlined),
         title: const Text('Über Matrix teilen'),
-        subtitle: const Text(
+        subtitle: Text(
           'Legt einen Matrix-Raum für die Gruppe an. Danach kannst du '
-          'andere einladen.',
+          'andere einladen.'
+          '${matrix.encryptionEnabled ? ' Der Raum wird verschlüsselt.' : ''}',
         ),
         enabled: !matrix.busy,
         onTap: () => matrix.share(widget.session),
@@ -137,6 +138,18 @@ class _MatrixSectionState extends State<_MatrixSection> {
           title: const Text('Matrix-Raum'),
           subtitle: SelectableText('${backend['roomId']}'),
         ),
+        if (matrix.isEncrypted(widget.session) case final encrypted?)
+          ListTile(
+            leading: Icon(
+              encrypted ? Icons.lock_outline : Icons.lock_open_outlined,
+            ),
+            title: Text(encrypted ? 'Verschlüsselt' : 'Nicht verschlüsselt'),
+            subtitle: Text(
+              encrypted
+                  ? 'Nur die Geräte der Mitglieder können die Liste lesen.'
+                  : 'Der Matrix-Server kann die Liste lesen.',
+            ),
+          ),
         FutureBuilder(
           future: _members,
           builder: (context, snapshot) => ListTile(
