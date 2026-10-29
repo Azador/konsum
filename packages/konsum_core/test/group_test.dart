@@ -272,6 +272,18 @@ void main() {
       expect(s.alice.estimatedPrice(s.alice.entries(listId).single), 50);
     });
 
+    test('Packungsgröße am Artikel gilt auch für vorhandene Einträge', () {
+      s.alice.addToList(listId, spaghetti, quantity: 2);
+      expect(s.alice.entries(listId).single.packSize, isNull);
+      s.alice.updateArticle(spaghetti, {'packSize': 500, 'packUnit': 'g'});
+      var e = s.alice.entries(listId).single;
+      expect(e.base, (amount: 1, unit: Units.kilogram));
+      // Eine eigene Packungsgröße des Eintrags hat Vorrang.
+      s.alice.updateEntry(listId, spaghetti, {'packSize': 1, 'packUnit': 'kg'});
+      e = s.alice.entries(listId).single;
+      expect(e.base, (amount: 2, unit: Units.kilogram));
+    });
+
     test('Ohne Einheit gilt Packung', () {
       s.alice.recordPrice(spaghetti, 129, quantity: 1, unit: Units.pack);
       final milch = s.alice.createArticle('Milch').id;

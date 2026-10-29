@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import '../state/group_session.dart';
 import 'dialogs.dart';
 import 'format.dart';
+import 'pack_size_dialog.dart';
 import 'price_dialog.dart';
 import 'scan.dart';
 import 'scope.dart';
@@ -109,20 +110,16 @@ class ArticlePage extends StatelessWidget {
             ),
             trailing: const Icon(Icons.edit_outlined),
             onTap: () async {
-              final text = await promptText(
+              final result = await showPackSizeDialog(
                 context,
-                title: 'Packungsgröße',
-                label: 'z. B. 500 g oder 1,5 l (leer: keine)',
-                initial: article.packSize == null
-                    ? ''
-                    : formatQuantity(article.packSize, article.packUnit),
+                size: article.packSize,
+                unit: article.packUnit,
               );
-              if (text == null) return;
-              final amount = parseAmount(text);
+              if (result == null) return;
               session.apply(
                 group.updateArticle(articleId, {
-                  'packSize': amount?.size,
-                  'packUnit': amount?.unit,
+                  'packSize': result.size,
+                  'packUnit': result.size == null ? null : result.unit,
                 }),
               );
             },

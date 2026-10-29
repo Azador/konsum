@@ -83,15 +83,19 @@ class Group {
       final f = replica.get(Types.entry, id)!;
       if (f['listId'] != listId) continue;
       final articleId = f['articleId'] as String;
-      if (article(articleId) == null) continue;
+      final a = article(articleId);
+      if (a == null) continue;
+      // Ohne eigene Packungsgröße gilt die des Artikels, auch wenn sie erst
+      // nach dem Hinzufügen eingetragen wurde.
+      final ownPack = f['packSize'] as num?;
       result.add(
         ListEntry(
           listId: listId,
           articleId: articleId,
           quantity: f['quantity'] as num?,
           unit: f['unit'] as String?,
-          packSize: f['packSize'] as num?,
-          packUnit: f['packUnit'] as String?,
+          packSize: ownPack ?? a.packSize,
+          packUnit: ownPack != null ? f['packUnit'] as String? : a.packUnit,
           note: f['note'] as String?,
           price: f['price'] as int?,
           basePrice: f['basePrice'] as num?,

@@ -65,13 +65,19 @@ String formatBasePrice(num cents, String baseUnit) =>
 /// und Volumen. Null, wenn nichts Passendes darin steht.
 ({num size, String unit})? parseAmount(String text) {
   final m = RegExp(
-    r'(\d+(?:[.,]\d+)?)\s*(kg|g|ml|l)\b',
+    r'(\d+(?:[.,]\d+)?)\s*(kg|kilo|g|gr|gramm|ml|l|ltr|liter)\b',
     caseSensitive: false,
   ).firstMatch(text);
   if (m == null) return null;
   final size = parseNumber(m.group(1)!);
   if (size == null || size == 0) return null;
-  return (size: size, unit: m.group(2)!.toLowerCase());
+  final unit = switch (m.group(2)!.toLowerCase()) {
+    'kilo' => Units.kilogram,
+    'gr' || 'gramm' => Units.gram,
+    'ltr' || 'liter' => Units.litre,
+    final u => u,
+  };
+  return (size: size, unit: unit);
 }
 
 /// Betrag für Eingabefelder: „2,58“.

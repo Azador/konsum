@@ -77,6 +77,8 @@ void main() {
     expect(parseAmount('500 g'), (size: 500, unit: 'g'));
     expect(parseAmount('1,5 L'), (size: 1.5, unit: 'l'));
     expect(parseAmount('6 x 0.33l'), (size: 0.33, unit: 'l'));
+    expect(parseAmount('500 gr'), (size: 500, unit: 'g'));
+    expect(parseAmount('1 Liter'), (size: 1, unit: 'l'));
     expect(parseAmount('2 Stück'), isNull);
     expect(parseAmount(''), isNull);
   });
