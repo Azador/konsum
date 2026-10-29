@@ -7,6 +7,7 @@ abstract final class Types {
   static const list = 'list';
   static const entry = 'entry';
   static const purchase = 'purchase';
+  static const price = 'price';
 }
 
 /// Mengeneinheiten. Die Codes werden gespeichert, die Anzeigenamen liefert die App.
@@ -85,6 +86,7 @@ class ListEntry {
     this.quantity,
     this.unit,
     this.note,
+    this.price,
     this.checked = false,
   });
 
@@ -96,6 +98,9 @@ class ListEntry {
   /// Notiz für alle in der Gruppe. Private Notizen liegen getrennt
   /// beim jeweiligen Benutzer.
   final String? note;
+
+  /// Preis für diesen Eintrag in Cent (für die eingetragene Menge).
+  final int? price;
   final bool checked;
 
   String get id => entryId(listId, articleId);
@@ -112,10 +117,40 @@ class Purchase {
     required this.articleId,
     required this.listId,
     required this.millis,
+    this.shopId,
   });
 
   final String id;
   final String articleId;
   final String listId;
   final int millis;
+  final String? shopId;
+}
+
+/// Ein beobachteter Preis eines Artikels, optional mit Menge und Laden.
+/// Preise werden nur angelegt und gelöscht, nie geändert.
+class PricePoint {
+  const PricePoint({
+    required this.id,
+    required this.articleId,
+    required this.cents,
+    required this.millis,
+    this.quantity,
+    this.unit,
+    this.shopId,
+  });
+
+  final String id;
+  final String articleId;
+
+  /// Preis in Cent für [quantity] [unit] (ohne Menge: für eine Einheit).
+  final int cents;
+  final int millis;
+  final num? quantity;
+  final String? unit;
+  final String? shopId;
+
+  /// Preis für eine Einheit [unit].
+  double get unitCents =>
+      cents / (quantity == null || quantity == 0 ? 1 : quantity!);
 }

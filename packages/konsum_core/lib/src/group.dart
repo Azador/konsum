@@ -83,6 +83,7 @@ class Group {
           quantity: f['quantity'] as num?,
           unit: f['unit'] as String?,
           note: f['note'] as String?,
+          price: f['price'] as int?,
           checked: f['checked'] == true,
         ),
       );
@@ -111,8 +112,65 @@ class Group {
           articleId: f['articleId'] as String,
           listId: f['listId'] as String,
           millis: f['millis'] as int,
+          shopId: f['shopId'] as String?,
         ),
   ];
+
+  /// Preishistorie, neueste zuerst; optional nur für einen Artikel und/oder Laden.
+  List<PricePoint> priceHistory({String? articleId, String? shopId}) {
+    final result = [
+      for (final id in replica.ids(Types.price))
+        if (replica.get(Types.price, id) case final f?)
+          if ((articleId == null || f['articleId'] == articleId) &&
+              (shopId == null || f['shopId'] == shopId))
+            PricePoint(
+              id: id,
+              articleId: f['articleId'] as String,
+              cents: f['cents'] as int,
+              millis: f['millis'] as int,
+              quantity: f['quantity'] as num?,
+              unit: f['unit'] as String?,
+              shopId: f['shopId'] as String?,
+            ),
+    ];
+    result.sort((a, b) => b.millis.compareTo(a.millis));
+    return result;
+  }
+
+  /// Letzter bekannter Preis, bevorzugt aus dem Laden [shopId].
+  PricePoint? lastPrice(String articleId, {String? shopId}) {
+    if (shopId != null) {
+      final inShop = priceHistory(articleId: articleId, shopId: shopId);
+      if (inShop.isNotEmpty) return inShop.first;
+    }
+    final any = priceHistory(articleId: articleId);
+    return any.isEmpty ? null : any.first;
+  }
+
+  /// Preis eines Eintrags in Cent: der eingetragene Preis oder, falls keiner
+  /// eingetragen ist, eine Schätzung aus dem letzten Preis bei gleicher
+  /// Einheit. Null, wenn nichts bekannt ist.
+  int? estimatedPrice(ListEntry entry, {String? shopId}) {
+    if (entry.price != null) return entry.price;
+    final last = lastPrice(entry.articleId, shopId: shopId);
+    if (last == null || last.unit != entry.unit) return null;
+    return (last.unitCents * (entry.quantity ?? 1)).round();
+  }
+
+  /// Summe der (geschätzten) Preise der offenen Einträge einer Liste.
+  ({int cents, int unknown}) listTotal(String listId, {String? shopId}) {
+    var cents = 0;
+    var unknown = 0;
+    for (final e in entries(listId).where((e) => !e.checked)) {
+      final p = estimatedPrice(e, shopId: shopId);
+      if (p == null) {
+        unknown++;
+      } else {
+        cents += p;
+      }
+    }
+    return (cents: cents, unknown: unknown);
+  }
 
   /// Vorschläge zum Hinzufügen: Artikel, die zu [query] passen und noch nicht
   /// auf der Liste stehen, häufig gekaufte zuerst.
@@ -157,13 +215,16 @@ class Group {
   List<Change> updateArticle(String id, Map<String, Object?> fields) =>
       _write(Types.article, id, fields);
 
-  /// Entfernt den Artikel endgültig, samt Barcodes und Listeneinträgen.
+  /// Entfernt den Artikel endgültig, samt Barcodes, Listeneinträgen,
+  /// Käufen und Preishistorie.
   List<Change> deleteArticle(String id) => [
     ..._delete(Types.article, id),
     for (final code in barcodesOf(id)) ..._delete(Types.barcode, code),
-    for (final entryId in replica.ids(Types.entry))
-      if (replica.get(Types.entry, entryId)!['articleId'] == id)
-        ..._delete(Types.entry, entryId),
+    for (final type in [Types.entry, Types.purchase])
+      for (final objectId in replica.ids(type).toList())
+        if (replica.get(type, objectId)!['articleId'] == id)
+          ..._delete(type, objectId),
+    ...deletePriceHistory(articleId: id),
   ];
 
   /// Ordnet einen Barcode einem Artikel zu. Ein Barcode gehört immer genau
@@ -242,11 +303,13 @@ class Group {
     'quantity': quantity,
     'unit': unit ?? article(articleId)?.defaultUnit,
     'note': note,
+    'price': null,
     'checked': false,
     deletedField: false,
   });
 
-  /// Ändert einzelne Felder eines Eintrags (`quantity`, `unit`, `note`).
+  /// Ändert einzelne Felder eines Eintrags (`quantity`, `unit`, `note`,
+  /// `price`).
   List<Change> updateEntry(
     String listId,
     String articleId,
@@ -262,22 +325,66 @@ class Group {
   List<Change> removeFromList(String listId, String articleId) =>
       _delete(Types.entry, ListEntry.entryId(listId, articleId));
 
-  /// Verbucht alle abgehakten Einträge als Kauf und entfernt sie von der Liste.
-  List<Change> clearChecked(String listId) {
+  /// Verbucht alle abgehakten Einträge als Kauf (im Laden [shopId], falls
+  /// bekannt) und entfernt sie von der Liste. Eingetragene Preise wandern in
+  /// die Preishistorie.
+  List<Change> clearChecked(String listId, {String? shopId}) {
     final changes = <Change>[];
     for (final e in entries(listId).where((e) => e.checked)) {
-      final hlc = clock.tick();
+      final millis = clock.tick().millis;
       changes.addAll(
         _write(Types.purchase, _newId(), {
           'articleId': e.articleId,
           'listId': listId,
-          'millis': hlc.millis,
+          'millis': millis,
+          'shopId': shopId,
         }),
       );
+      if (e.price != null) {
+        changes.addAll(
+          recordPrice(
+            e.articleId,
+            e.price!,
+            quantity: e.quantity,
+            unit: e.unit,
+            shopId: shopId,
+          ).changes,
+        );
+      }
       changes.addAll(_delete(Types.entry, e.id));
     }
     return changes;
   }
+
+  /// Trägt einen Preis in die Historie ein.
+  ({String id, List<Change> changes}) recordPrice(
+    String articleId,
+    int cents, {
+    num? quantity,
+    String? unit,
+    String? shopId,
+  }) {
+    final id = _newId();
+    return (
+      id: id,
+      changes: _write(Types.price, id, {
+        'articleId': articleId,
+        'cents': cents,
+        'quantity': quantity,
+        'unit': unit,
+        'shopId': shopId,
+        'millis': clock.tick().millis,
+      }),
+    );
+  }
+
+  List<Change> deletePrice(String id) => _delete(Types.price, id);
+
+  /// Löscht die Preishistorie, optional nur für einen Artikel und/oder Laden.
+  List<Change> deletePriceHistory({String? articleId, String? shopId}) => [
+    for (final p in priceHistory(articleId: articleId, shopId: shopId))
+      ..._delete(Types.price, p.id),
+  ];
 
   // ------------------------------------------------------------------ intern
 

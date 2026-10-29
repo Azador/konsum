@@ -177,6 +177,86 @@ void main() {
     },
   );
 
+  group('Preise', () {
+    test('Beim Aufräumen wandert der Preis mit Laden in die Historie', () {
+      final famila = s.alice.createShop('Famila').id;
+      s.alice.addToList(listId, spaghetti, quantity: 2, unit: Units.pack);
+      s.alice.updateEntry(listId, spaghetti, {'price': 258});
+      s.alice.setChecked(listId, spaghetti, true);
+      s.alice.clearChecked(listId, shopId: famila);
+
+      final p = s.alice.priceHistory(articleId: spaghetti).single;
+      expect(p.cents, 258);
+      expect(p.quantity, 2);
+      expect(p.shopId, famila);
+      expect(p.unitCents, 129);
+      expect(s.alice.purchases.single.shopId, famila);
+    });
+
+    test('Schätzung aus dem letzten Preis, bevorzugt im gewählten Laden', () {
+      final famila = s.alice.createShop('Famila').id;
+      final kaufland = s.alice.createShop('Kaufland').id;
+      s.alice.recordPrice(
+        spaghetti,
+        129,
+        quantity: 1,
+        unit: Units.pack,
+        shopId: famila,
+      );
+      s.now += 1000;
+      s.alice.recordPrice(
+        spaghetti,
+        99,
+        quantity: 1,
+        unit: Units.pack,
+        shopId: kaufland,
+      );
+      s.alice.addToList(listId, spaghetti, quantity: 3);
+      final e = s.alice.entries(listId).single;
+
+      expect(s.alice.estimatedPrice(e), 297);
+      expect(s.alice.estimatedPrice(e, shopId: famila), 387);
+      expect(s.alice.listTotal(listId, shopId: famila), (
+        cents: 387,
+        unknown: 0,
+      ));
+    });
+
+    test('Keine Schätzung bei anderer Einheit', () {
+      s.alice.recordPrice(spaghetti, 199, quantity: 1, unit: Units.kilogram);
+      s.alice.addToList(listId, spaghetti, quantity: 2, unit: Units.pack);
+      final e = s.alice.entries(listId).single;
+      expect(s.alice.estimatedPrice(e), isNull);
+      expect(s.alice.listTotal(listId), (cents: 0, unknown: 1));
+    });
+
+    test('Historie löschen: einzeln, je Artikel, je Laden, komplett', () {
+      final milch = s.alice.createArticle('Milch').id;
+      final famila = s.alice.createShop('Famila').id;
+      final a = s.alice.recordPrice(spaghetti, 129).id;
+      s.alice.recordPrice(spaghetti, 119, shopId: famila);
+      s.alice.recordPrice(milch, 99, shopId: famila);
+      s.alice.recordPrice(milch, 109);
+
+      s.alice.deletePrice(a);
+      expect(s.alice.priceHistory(), hasLength(3));
+      s.alice.deletePriceHistory(shopId: famila);
+      expect(s.alice.priceHistory().single.cents, 109);
+      s.alice.deletePriceHistory(articleId: milch);
+      expect(s.alice.priceHistory(), isEmpty);
+    });
+
+    test('Artikel löschen entfernt auch Käufe und Preise', () {
+      s.alice.recordPrice(spaghetti, 129);
+      s.alice.addToList(listId, spaghetti);
+      s.alice.setChecked(listId, spaghetti, true);
+      s.alice.clearChecked(listId);
+      s.alice.deleteArticle(spaghetti);
+      expect(s.alice.priceHistory(), isEmpty);
+      expect(s.alice.purchases, isEmpty);
+    });
+  });
+
   test('Change überlebt JSON-Rundreise', () {
     final c = s.alice
         .updateShop(s.alice.createShop('Famila').id, categoryOrder: ['x', 'y'])
