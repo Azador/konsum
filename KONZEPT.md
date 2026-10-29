@@ -91,7 +91,7 @@ Lokale Datenhaltung: SQLite (über `drift`), im Web über IndexedDB/WASM.
 
 - **Gruppe = Matrix-Raum** (verschlüsselt). Einladen/Entfernen von Mitgliedern
   über die normale Matrix-Raumverwaltung, auch aus Element o. ä. heraus.
-- Änderungen werden als eigene Ereignisse (`de.einkaufsliste.change`) in den Raum
+- Änderungen werden als eigene Ereignisse (`de.azador.konsum.changes`) in den Raum
   geschrieben: *Objekt-ID, Feld, neuer Wert, Zeitstempel (Hybrid Logical Clock), Gerät*.
 - Jeder Client wendet die Ereignisse auf seine lokale Datenbank an.
   Konflikte: **die letzte Änderung gewinnt, pro Feld** – gleichzeitiges Ändern von
@@ -102,6 +102,8 @@ Lokale Datenhaltung: SQLite (über `drift`), im Web über IndexedDB/WASM.
   sichtbar, auf allen seinen Geräten synchron. Achtung: Account Data ist nicht
   Ende-zu-Ende-verschlüsselt, der Server-Admin könnte sie lesen. Alternativ:
   verschlüsselt im eigenen Konto ablegen.
+- Das genaue Format steht in [PROTOKOLL.md](PROTOKOLL.md); andere Programme
+  können damit dieselben Listen benutzen.
 - Die Sync-Schicht wird hinter einer Schnittstelle gekapselt, sodass später
   z. B. ein Nextcloud-Backend ergänzt werden kann.
 
@@ -176,6 +178,10 @@ Quelle nennen.
 - Verschlüsselung auch in der Web-App: vodozemac als WebAssembly
   (`deploy/web/build-vodozemac.sh`, Rust nightly); Caddy liefert dafür mit
   Cross-Origin-Isolation (COOP/COEP) aus (2026-10-29)
+
+- Protokoll für andere Projekte offengelegt: Spezifikation in PROTOKOLL.md,
+  Dart-Pakete per Git-Abhängigkeit einbindbar; ein Test hält das Format
+  fest (2026-10-30)
 
 ## Offene Punkte
 

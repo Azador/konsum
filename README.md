@@ -5,6 +5,10 @@ Synchronisation über Matrix, Apps für Android und Linux, Web-App für alle and
 
 Details: [KONZEPT.md](KONZEPT.md)
 
+Eigene Programme können geteilte Listen mitbenutzen: Das Matrix-Protokoll
+steht in [PROTOKOLL.md](PROTOKOLL.md), Dart-Projekte binden
+[`packages/konsum_matrix`](packages/konsum_matrix/README.md) direkt ein.
+
 ## Aufbau
 
 | Verzeichnis | Inhalt |
