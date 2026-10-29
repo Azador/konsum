@@ -37,6 +37,19 @@ KONSUM_HTTP_PORT=8080
 Nach einem Update der App reicht `build.sh`; Caddy liefert die neuen Dateien
 sofort aus (das Verzeichnis ist eingebunden, kein Neustart nötig).
 
+## Ohne Docker auf einem anderen Rechner installieren
+
+```bash
+deploy/web/install.sh [benutzer@]rechner
+```
+
+Richtet per ssh auf dem Zielrechner einen eigenen Systembenutzer und Caddy
+als systemd-Dienst `konsum-web` ein (Daten und CA unter `/var/lib/<benutzer>`).
+Nötig sind dort systemd und sudo; fehlt Caddy, wird es nach Rückfrage über
+den Paketmanager installiert. Das Skript fragt Benutzer, Rechnernamen und
+Ports ab und baut die Web-App bei Bedarf. Für ein Update einfach erneut
+ausführen: Die bisherigen Einstellungen sind vorbelegt.
+
 ## Stammzertifikat auf den Geräten installieren
 
 Einmalig pro Gerät. Das Zertifikat liegt unter
@@ -59,9 +72,18 @@ Einstellungen → Sicherheit → Verschlüsselung & Anmeldedaten → Zertifikat
 installieren → CA-Zertifikat → heruntergeladene Datei wählen. Die genaue
 Menüführung hängt vom Hersteller ab.
 
-### Linux / Windows / macOS
-Zertifikat herunterladen und in den Browser bzw. das System importieren
-(Firefox: Einstellungen → Datenschutz & Sicherheit → Zertifikate → Importieren).
+### Firefox (Linux / Windows / macOS)
+Firefox hat eine eigene Zertifikatsliste. `http://loboci:8080/konsum-ca.crt`
+in Firefox öffnen und „Dieser CA vertrauen, um Websites zu identifizieren“
+ankreuzen. Alternativ: Einstellungen → Datenschutz & Sicherheit → Zertifikate
+anzeigen… → Zertifizierungsstellen → Importieren…
+
+Firefox für Android nimmt die Zertifikate aus Android erst, wenn man unter
+Einstellungen → Über Firefox fünfmal auf das Logo tippt und dann unter
+„Secret Settings“ „Use third party CA certificates“ einschaltet.
+
+### Andere Browser unter Linux / Windows / macOS
+Zertifikat herunterladen und in das System bzw. den Browser importieren.
 
 ## Offline-Betrieb
 

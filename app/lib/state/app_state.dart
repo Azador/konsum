@@ -167,6 +167,23 @@ class AppState extends ChangeNotifier {
     _changed();
   }
 
+  /// Ob [g] nur die beim ersten Start angelegte, unbenutzte Gruppe ist:
+  /// nicht geteilt, keine Artikel, Läden, Einkäufe oder Listeneinträge.
+  bool isUnused(GroupSession g) =>
+      g.info.backend == null &&
+      g.group.articles.isEmpty &&
+      g.group.shops.isEmpty &&
+      g.group.purchases.isEmpty &&
+      g.group.lists.every((l) => g.group.entries(l.id).isEmpty);
+
+  /// Entfernt unbenutzte Gruppen ([isUnused]), z. B. wenn nach der Anmeldung
+  /// auf einem neuen Gerät die geteilten Gruppen dazukommen.
+  Future<void> removeUnusedGroups() async {
+    for (final g in [..._groups]) {
+      if (isUnused(g)) await removeGroup(g);
+    }
+  }
+
   /// Versucht bei allen Gruppen, Ausstehendes zu verschicken.
   Future<void> flushAll() async {
     for (final g in _groups) {

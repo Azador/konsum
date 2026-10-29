@@ -4,6 +4,9 @@
 # Zertifizierungsstelle (CA) von Caddy: kein Let's Encrypt, kein Zugriff von
 # außen nötig. Das Stammzertifikat der CA muss einmalig auf jedem Gerät
 # installiert werden, es liegt unter http://<host>:<http-port>/konsum-ca.crt.
+#
+# Pfade per Umgebungsvariable: KONSUM_ROOT (Web-App), KONSUM_CA_DIR (CA);
+# Standard sind die Pfade im Docker-Container (compose.yaml).
 
 {
 	local_certs
@@ -15,14 +18,14 @@
 https://{$KONSUM_HOST:loboci}:{$KONSUM_HTTPS_PORT:8443}, https://localhost:{$KONSUM_HTTPS_PORT:8443} {
 	tls internal
 
-	root * /srv
+	root * {$KONSUM_ROOT:/srv}
 	encode zstd gzip
 
-	# Einstiegsdateien nie aus dem Browser-Cache, damit Updates ankommen.
-	@entry path / /index.html /flutter_bootstrap.js /konsum_sw.js /version.json /manifest.json
-	header @entry Cache-Control "no-cache"
-
 	header {
+		# Immer beim Server nachfragen (unverändert: kurze 304-Antwort), damit
+		# Updates ankommen. Die Dateinamen tragen keine Versionsnummer, ohne
+		# diese Angabe nähme der Browser z. B. ein altes main.dart.js.
+		Cache-Control no-cache
 		X-Content-Type-Options nosniff
 		Referrer-Policy no-referrer
 		# Cross-Origin-Isolation: Die Verschlüsselung (vodozemac als WASM)
@@ -41,10 +44,12 @@ https://{$KONSUM_HOST:loboci}:{$KONSUM_HTTPS_PORT:8443}, https://localhost:{$KON
 # Unverschlüsselt nur: Stammzertifikat zum Installieren, sonst Umleitung.
 http://{$KONSUM_HOST:loboci}:{$KONSUM_HTTP_PORT:8080}, http://localhost:{$KONSUM_HTTP_PORT:8080} {
 	handle /konsum-ca.crt {
-		root * /data/caddy/pki/authorities/local
+		root * {$KONSUM_CA_DIR:/data/caddy/pki/authorities/local}
 		rewrite * /root.crt
 		header Content-Type application/x-x509-ca-cert
-		header Content-Disposition "attachment; filename=konsum-ca.crt"
+		# inline, nicht attachment: Sonst lädt Firefox die Datei nur herunter,
+		# statt den Dialog zum Vertrauen der CA zu zeigen.
+		header Content-Disposition "inline; filename=konsum-ca.crt"
 		file_server
 	}
 	handle {

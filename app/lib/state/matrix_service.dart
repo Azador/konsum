@@ -93,7 +93,10 @@ class MatrixService extends ChangeNotifier {
       );
       _client = client;
       await client.init(waitForFirstSync: false);
-      _syncSub = client.onSync.stream.listen((_) => notifyListeners());
+      _syncSub = client.onSync.stream.listen((_) {
+        notifyListeners();
+        unawaited(_adoptJoinedRooms());
+      });
       if (isLoggedIn) await connectAll();
     } catch (e) {
       error = 'Matrix nicht verfügbar: $e';
@@ -231,6 +234,7 @@ class MatrixService extends ChangeNotifier {
   Future<void> connectAll() async {
     final groups = _groups;
     if (groups == null) return;
+    await _adoptJoinedRooms();
     for (final g in _app.groups) {
       final roomId = g.info.backend?['roomId'];
       if (g.info.backend?['type'] != _backendType || roomId is! String) {
@@ -244,14 +248,73 @@ class MatrixService extends ChangeNotifier {
     }
   }
 
+  /// Raum-IDs, die gerade übernommen werden (onSync feuert oft).
+  final _adopting = <String>{};
+
+  /// Solange [share] oder [join] laufen, ist ihr Raum schon beigetreten,
+  /// gehört aber noch zu keiner Gruppe; nicht doppelt anlegen.
+  int _adoptionPaused = 0;
+
+  Future<void> _withoutAdopting(Future<void> Function() action) async {
+    _adoptionPaused++;
+    try {
+      await action();
+    } finally {
+      _adoptionPaused--;
+    }
+  }
+
+  /// Legt Gruppen an für Konsum-Räume, denen das Konto schon beigetreten ist,
+  /// die es auf diesem Gerät aber noch nicht gibt: neues Gerät desselben
+  /// Kontos oder Beitritt mit einem anderen Programm (z. B. Element).
+  Future<void> _adoptJoinedRooms() async {
+    final groups = _groups;
+    if (groups == null || _adoptionPaused > 0) return;
+    final known = {
+      for (final g in _app.groups)
+        if (g.info.backend?['type'] == _backendType) g.info.backend!['roomId'],
+    };
+    var adopted = 0;
+    for (final ref in groups.groups) {
+      if (ref.invited ||
+          known.contains(ref.roomId) ||
+          !_adopting.add(ref.roomId)) {
+        continue;
+      }
+      try {
+        // Die leere Startgruppe eines frischen Geräts würde sonst vor der
+        // geteilten Gruppe angezeigt.
+        await _app.removeUnusedGroups();
+        final session = await _app.createGroup(
+          ref.name,
+          withDefaults: false,
+          backend: {'type': _backendType, 'roomId': ref.roomId},
+        );
+        await session.attach(groups.sync(ref.roomId));
+        adopted++;
+      } finally {
+        _adopting.remove(ref.roomId);
+      }
+    }
+    if (adopted > 0) {
+      _app.status.show(
+        adopted == 1
+            ? 'Geteilte Gruppe übernommen, Daten werden geladen …'
+            : '$adopted geteilte Gruppen übernommen, Daten werden geladen …',
+      );
+    }
+  }
+
   /// Teilt eine bisher lokale Gruppe: legt einen Raum an und verschickt den
   /// vollständigen Stand.
-  Future<bool> share(GroupSession session) => _run(() async {
-    final roomId = await _groups!.create(session.info.name);
-    session.share({'type': _backendType, 'roomId': roomId});
-    _app.notifyGroupChanged();
-    await session.attach(_groups!.sync(roomId));
-  });
+  Future<bool> share(GroupSession session) => _run(
+    () => _withoutAdopting(() async {
+      final roomId = await _groups!.create(session.info.name);
+      session.share({'type': _backendType, 'roomId': roomId});
+      _app.notifyGroupChanged();
+      await session.attach(_groups!.sync(roomId));
+    }),
+  );
 
   Future<bool> invite(GroupSession session, String userId) =>
       _run(() => _groups!.invite(_roomId(session), userId.trim()));
@@ -260,15 +323,17 @@ class MatrixService extends ChangeNotifier {
       _groups?.members(_roomId(session)) ?? const [];
 
   /// Nimmt eine Einladung an und legt die Gruppe lokal an.
-  Future<bool> join(MatrixGroupRef ref) => _run(() async {
-    await _groups!.join(ref.roomId);
-    final session = await _app.createGroup(
-      ref.name,
-      withDefaults: false,
-      backend: {'type': _backendType, 'roomId': ref.roomId},
-    );
-    await session.attach(_groups!.sync(ref.roomId));
-  });
+  Future<bool> join(MatrixGroupRef ref) => _run(
+    () => _withoutAdopting(() async {
+      await _groups!.join(ref.roomId);
+      final session = await _app.createGroup(
+        ref.name,
+        withDefaults: false,
+        backend: {'type': _backendType, 'roomId': ref.roomId},
+      );
+      await session.attach(_groups!.sync(ref.roomId));
+    }),
+  );
 
   /// Verlässt den Raum und entfernt die Gruppe von diesem Gerät.
   Future<bool> leave(GroupSession session) => _run(() async {
