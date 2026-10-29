@@ -12,6 +12,7 @@ Details: [KONZEPT.md](KONZEPT.md)
 | `packages/konsum_core` | Datenmodell und Konfliktauflösung (reines Dart) |
 | `packages/konsum_matrix` | Matrix als Sync-Backend |
 | `app` | Flutter-App für Android, Linux, iOS und Web |
+| `deploy/web` | Caddy für die Web-App im lokalen Netz, siehe [README](deploy/web/README.md) |
 
 ## Entwicklung
 
