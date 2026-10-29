@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:konsum_core/konsum_core.dart';
 
+import '../services/open_food_facts.dart';
 import '../state/group_session.dart';
 import 'dialogs.dart';
 import 'drawer.dart';
 import 'entry_sheet.dart';
 import 'format.dart';
+import 'scan.dart';
 import 'scope.dart';
 
 /// Hauptseite: die gewählte Liste mit Eingabezeile zum Hinzufügen.
@@ -41,6 +43,12 @@ class _ListPageState extends State<ListPage> {
   }
 
   void _add(String input) {
+    // Ein Handscanner tippt den Barcode ins Feld und schickt Enter.
+    if (OpenFoodFacts.isProductCode(input.trim())) {
+      _input.clear();
+      handleListScan(context, _session, widget.listId, input.trim());
+      return;
+    }
     final parsed = parseQuickAdd(input);
     if (parsed.name.isEmpty) return;
     final existing = _group.articles
@@ -196,7 +204,21 @@ class _ListPageState extends State<ListPage> {
                   prefixIcon: const Icon(Icons.add_shopping_cart),
                   border: const OutlineInputBorder(),
                   suffixIcon: _input.text.isEmpty
-                      ? null
+                      ? IconButton(
+                          tooltip: 'Barcode scannen',
+                          icon: const Icon(Icons.qr_code_scanner),
+                          onPressed: () async {
+                            final code = await scanBarcode(context);
+                            if (code != null && context.mounted) {
+                              await handleListScan(
+                                context,
+                                _session,
+                                widget.listId,
+                                code,
+                              );
+                            }
+                          },
+                        )
                       : IconButton(
                           icon: const Icon(Icons.send),
                           onPressed: () => _add(_input.text),

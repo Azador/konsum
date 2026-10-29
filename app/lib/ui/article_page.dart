@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 
 import '../state/group_session.dart';
 import 'dialogs.dart';
 import 'format.dart';
 import 'price_dialog.dart';
+import 'scan.dart';
 import 'scope.dart';
 import 'unit_field.dart';
 
@@ -101,33 +103,16 @@ class ArticlePage extends StatelessWidget {
             children: [
               Expanded(child: Text('Barcodes', style: heading)),
               IconButton(
-                tooltip: 'Barcode eintragen',
-                icon: const Icon(Icons.add),
-                onPressed: () async {
-                  final code = await promptText(
-                    context,
-                    title: 'Barcode eintragen',
-                    label: 'EAN/GTIN',
-                  );
-                  if (code != null) {
-                    session.apply(group.assignBarcode(code, articleId));
-                  }
-                },
+                tooltip: 'Barcode hinzufügen',
+                icon: const Icon(Icons.qr_code_scanner),
+                onPressed: () =>
+                    addBarcodeToArticle(context, session, articleId),
               ),
             ],
           ),
           if (barcodes.isEmpty) const Text('Keine Barcodes.'),
           for (final code in barcodes)
-            ListTile(
-              contentPadding: EdgeInsets.zero,
-              leading: const Icon(Icons.qr_code),
-              title: Text(code),
-              trailing: IconButton(
-                tooltip: 'Entfernen',
-                icon: const Icon(Icons.close),
-                onPressed: () => session.apply(group.removeBarcode(code)),
-              ),
-            ),
+            _BarcodeTile(session: session, code: code),
           const SizedBox(height: 24),
           Row(
             children: [
@@ -187,6 +172,69 @@ class ArticlePage extends StatelessWidget {
             ),
         ],
       ),
+    );
+  }
+}
+
+const _nutrimentLabels = {
+  'energy-kcal': ('Energie', 'kcal'),
+  'fat': ('Fett', 'g'),
+  'saturated-fat': ('davon gesättigte Fettsäuren', 'g'),
+  'carbohydrates': ('Kohlenhydrate', 'g'),
+  'sugars': ('davon Zucker', 'g'),
+  'proteins': ('Eiweiß', 'g'),
+  'salt': ('Salz', 'g'),
+};
+
+/// Ein Barcode mit Produktdaten und Nährwerten (aufklappbar).
+class _BarcodeTile extends StatelessWidget {
+  const _BarcodeTile({required this.session, required this.code});
+
+  final GroupSession session;
+  final String code;
+
+  @override
+  Widget build(BuildContext context) {
+    final info = session.group.productInfo(code);
+    final remove = IconButton(
+      tooltip: 'Barcode entfernen',
+      icon: const Icon(Icons.close),
+      onPressed: () => session.apply(session.group.removeBarcode(code)),
+    );
+    if (info == null) {
+      return ListTile(
+        contentPadding: EdgeInsets.zero,
+        leading: const Icon(Icons.qr_code),
+        title: Text(code),
+        trailing: remove,
+      );
+    }
+    final number = NumberFormat.decimalPattern('de');
+    return ExpansionTile(
+      tilePadding: EdgeInsets.zero,
+      leading: const Icon(Icons.qr_code),
+      title: Text([?info.brand, ?info.name].join(' · ')),
+      subtitle: Text([code, ?info.quantity].join(' · ')),
+      trailing: remove,
+      childrenPadding: const EdgeInsets.only(left: 40, bottom: 8),
+      expandedCrossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (info.nutriments.isEmpty)
+          const Text('Keine Nährwerte bekannt.')
+        else ...[
+          const Text('Nährwerte je 100 g/ml'),
+          for (final e in _nutrimentLabels.entries)
+            if (info.nutriments[e.key] case final num v)
+              Text('${e.value.$1}: ${number.format(v)} ${e.value.$2}'),
+        ],
+        if (info.nutriScore != null)
+          Text('Nutri-Score: ${info.nutriScore!.toUpperCase()}'),
+        const SizedBox(height: 4),
+        Text(
+          'Daten: Open Food Facts (ODbL)',
+          style: Theme.of(context).textTheme.bodySmall,
+        ),
+      ],
     );
   }
 }

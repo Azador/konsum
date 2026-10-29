@@ -6,6 +6,8 @@
 	<true/>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Zum Scannen von Barcodes beim Hinzufügen und Abhaken.</string>
 	<key>CFBundleDisplayName</key>
 	<string>Konsum</string>
 	<key>CFBundleExecutable</key>

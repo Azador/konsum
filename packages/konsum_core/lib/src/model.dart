@@ -154,3 +154,49 @@ class PricePoint {
   double get unitCents =>
       cents / (quantity == null || quantity == 0 ? 1 : quantity!);
 }
+
+/// Produktdaten zu einem Barcode, z. B. von Open Food Facts.
+class ProductInfo {
+  const ProductInfo({
+    this.name,
+    this.brand,
+    this.quantity,
+    this.imageUrl,
+    this.nutriments = const {},
+    this.nutriScore,
+  });
+
+  final String? name;
+  final String? brand;
+
+  /// Packungsgröße als Text, z. B. „500 g“.
+  final String? quantity;
+  final String? imageUrl;
+
+  /// Nährwerte je 100 g/ml, Schlüssel wie bei Open Food Facts
+  /// (`energy-kcal`, `fat`, `saturated-fat`, `carbohydrates`, `sugars`,
+  /// `proteins`, `salt`).
+  final Map<String, num> nutriments;
+  final String? nutriScore;
+
+  Map<String, Object?> toJson() => {
+    'name': name,
+    'brand': brand,
+    'quantity': quantity,
+    'imageUrl': imageUrl,
+    'nutriments': nutriments,
+    'nutriScore': nutriScore,
+  };
+
+  factory ProductInfo.fromJson(Map<String, Object?> json) => ProductInfo(
+    name: json['name'] as String?,
+    brand: json['brand'] as String?,
+    quantity: json['quantity'] as String?,
+    imageUrl: json['imageUrl'] as String?,
+    nutriments: {
+      for (final e in (json['nutriments'] as Map? ?? const {}).entries)
+        if (e.value is num) e.key as String: e.value as num,
+    },
+    nutriScore: json['nutriScore'] as String?,
+  );
+}

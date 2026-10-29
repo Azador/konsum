@@ -257,6 +257,27 @@ void main() {
     });
   });
 
+  test('Produktdaten am Barcode', () {
+    s.alice.assignBarcode('4000000000001', spaghetti);
+    s.send(
+      s.alice.setProductInfo(
+        '4000000000001',
+        const ProductInfo(
+          name: 'Spaghetti n.5',
+          brand: 'Barilla',
+          nutriments: {'energy-kcal': 359, 'proteins': 12.5},
+        ),
+      ),
+      s.bob,
+    );
+    expect(s.bob.productInfo('4000000000001')!.name, 'Spaghetti n.5');
+    expect(s.bob.articleForBarcode('4000000000001'), isNull);
+    s.send(s.alice.replica.snapshot(), s.bob);
+    expect(s.bob.productInfo('4000000000001')!.brand, 'Barilla');
+    expect(s.bob.productInfo('4000000000001')!.nutriments['proteins'], 12.5);
+    expect(s.bob.articleForBarcode('4000000000001')!.id, spaghetti);
+  });
+
   test('Change überlebt JSON-Rundreise', () {
     final c = s.alice
         .updateShop(s.alice.createShop('Famila').id, categoryOrder: ['x', 'y'])

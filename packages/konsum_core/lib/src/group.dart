@@ -44,6 +44,14 @@ class Group {
       if (replica.get(Types.barcode, code)!['articleId'] == articleId) code,
   ];
 
+  /// Gespeicherte Produktdaten zu einem Barcode.
+  ProductInfo? productInfo(String code) {
+    final json = replica.get(Types.barcode, code)?['product'];
+    return json is Map
+        ? ProductInfo.fromJson(json.cast<String, Object?>())
+        : null;
+  }
+
   List<Category> get categories => _sortedByName([
     for (final id in replica.ids(Types.category))
       Category(
@@ -236,6 +244,10 @@ class Group {
   );
 
   List<Change> removeBarcode(String code) => _delete(Types.barcode, code);
+
+  /// Speichert Produktdaten (z. B. von Open Food Facts) zu einem Barcode.
+  List<Change> setProductInfo(String code, ProductInfo info) =>
+      _write(Types.barcode, code, {'product': info.toJson()});
 
   ({String id, List<Change> changes}) createCategory(String name) {
     final id = _newId();
