@@ -53,8 +53,9 @@ class MatrixService extends ChangeNotifier {
   bool waitingForBrowser = false;
   Completer<Never>? _browserCancel;
 
-  /// Ob Ende-zu-Ende-Verschlüsselung verfügbar ist. Im Web fehlt noch der
-  /// WASM-Build von vodozemac.
+  /// Ob Ende-zu-Ende-Verschlüsselung verfügbar ist. Im Web nur, wenn
+  /// vodozemac als WASM mitgebaut wurde und die Seite cross-origin-isoliert
+  /// ausgeliefert wird.
   bool get encryptionEnabled => _client?.encryptionEnabled ?? false;
 
   Client? get client => _client;
@@ -74,12 +75,12 @@ class MatrixService extends ChangeNotifier {
   /// verhindern den App-Start nicht.
   Future<void> init() async {
     try {
-      if (!kIsWeb) {
-        try {
-          await vod.init();
-        } catch (e) {
-          debugPrint('Verschlüsselung nicht verfügbar: $e');
-        }
+      try {
+        // Im Web aus web/pkg (siehe deploy/web/build-vodozemac.sh).
+        await vod.init();
+        Logs().i('Verschlüsselung (vodozemac) geladen');
+      } catch (e) {
+        debugPrint('Verschlüsselung nicht verfügbar: $e');
       }
       final client = Client(
         'Konsum',
@@ -131,7 +132,7 @@ class MatrixService extends ChangeNotifier {
     return result;
   }
 
-  /// Im Web fehlt dem SDK dafür noch vodozemac (WASM).
+  /// Im Web fehlt dafür noch der Rückweg vom Server auf die Seite.
   bool get browserLoginAvailable => !kIsWeb;
 
   /// Anmeldung mit Benutzername (oder vollständiger Matrix-ID) und Passwort

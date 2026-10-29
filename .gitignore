@@ -6,6 +6,9 @@ pubspec.lock
 .flutter-plugins
 .flutter-plugins-dependencies
 
+# vodozemac als WASM, wird von deploy/web/build-vodozemac.sh erzeugt
+app/web/pkg/
+
 # IDE
 .idea/
 *.iml

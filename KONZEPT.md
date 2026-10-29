@@ -173,14 +173,16 @@ Quelle nennen.
   Die Client-Adresse muss dazu `https://konsum.azador.de` sein (umgekehrtes
   App-Schema); sie wird auf der Anmeldeseite angezeigt (2026-10-29)
 
+- Verschlüsselung auch in der Web-App: vodozemac als WebAssembly
+  (`deploy/web/build-vodozemac.sh`, Rust nightly); Caddy liefert dafür mit
+  Cross-Origin-Isolation (COOP/COEP) aus (2026-10-29)
+
 ## Offene Punkte
 
-- Verschlüsselung im Web: WASM-Build von vodozemac
-  (`flutter_rust_bridge_codegen`, `wasm-pack`). Bis dahin kann die Web-App
-  verschlüsselte Gruppen nicht lesen
+- Web-App: Anmeldung im Browser (OIDC) braucht noch den Rückweg auf die
+  eigene Seite; bis dahin nur Passwort
 - Geräte-Verifizierung, Schlüssel-Backup
-- Anmeldung im Browser auch in der Web-App (braucht vodozemac als WASM)
 - Unter `https://konsum.azador.de` eine kleine Projektseite (wird bei der
   Anmeldung als Adresse der App angezeigt)
-- Live-Test mit echtem Matrix-Server
+- Live-Test der Web-App mit Verschlüsselung (Caddy auf loboci)
 - Web-App: localStorage (ca. 5 MB) ggf. durch IndexedDB ersetzen

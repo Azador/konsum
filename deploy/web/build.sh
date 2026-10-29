@@ -3,6 +3,8 @@
 # CanvasKit wird mitgeliefert (statt vom Google-CDN geladen), damit die App
 # ohne Internet aus dem Cache starten kann.
 set -eu
-cd "$(dirname "$0")/../../app"
+here="$(cd "$(dirname "$0")" && pwd)"
+"$here/build-vodozemac.sh"
+cd "$here/../../app"
 flutter build web --release --no-web-resources-cdn --no-wasm-dry-run
 echo "Fertig: app/build/web. Starten mit: cd deploy/web && docker compose up -d"

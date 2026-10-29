@@ -11,6 +11,20 @@ deploy/web/build.sh                      # baut app/build/web
 cd deploy/web && docker compose up -d    # startet Caddy
 ```
 
+`build.sh` baut zuerst die Matrix-Verschlüsselung (vodozemac) als
+WebAssembly nach `app/web/pkg` (`build-vodozemac.sh`, nur wenn sich die
+Version geändert hat). Einmalig nötig, alles ohne root:
+
+```bash
+rustup toolchain install nightly --component rust-src
+rustup target add wasm32-unknown-unknown --toolchain nightly
+cargo install flutter_rust_bridge_codegen --version 2.13.0 --locked
+cargo install wasm-pack --locked
+```
+
+Die Version von `flutter_rust_bridge_codegen` muss zu vodozemac passen; das
+Skript prüft das und nennt sonst die richtige.
+
 Standard: Host `loboci`, HTTPS-Port 8443, HTTP-Port 8080. Anpassen per
 Umgebungsvariablen oder `.env`-Datei neben `compose.yaml`:
 
@@ -57,6 +71,14 @@ aus dem Cache. Die Daten liegen ohnehin lokal und gleichen sich über Matrix
 ab, sobald Internet da ist.
 
 ## Hinweise
+
+- Caddy schickt `Cross-Origin-Opener-Policy`/`Cross-Origin-Embedder-Policy`.
+  Die Verschlüsselung braucht diese Isolation (gemeinsamer Speicher für
+  WebAssembly). Folge: Fremde Dateien lädt der Browser nur, wenn der
+  fremde Server sie freigibt; unpkg, Google Fonts, Open Food Facts und
+  Matrix-Server tun das.
+- In der Web-App gibt es nur die Anmeldung mit Passwort. Ein neues Konto
+  legst du in der Android- oder Linux-App an.
 
 - `loboci` muss auf allen Geräten auflösbar sein (DNS im Router o. ä.).
   Mobilgeräte lösen reine Hostnamen ohne Domain teils nicht auf; dann
