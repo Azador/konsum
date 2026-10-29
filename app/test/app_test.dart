@@ -75,6 +75,6 @@ void main() {
     final g = again.currentGroup!;
     expect(g.group.entries(again.currentListId!).single.articleId, r.id);
     expect(g.private.note('${again.currentListId}/${r.id}'), 'laktosefrei');
-    expect(g.outbox.pending, isNotEmpty, reason: 'noch nicht synchronisiert');
+    expect(g.outbox.pending, isEmpty, reason: 'lokale Gruppe, keine Outbox');
   });
 }

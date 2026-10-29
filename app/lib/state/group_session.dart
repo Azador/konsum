@@ -102,7 +102,9 @@ class GroupSession extends ChangeNotifier {
   /// Übernimmt lokal erzeugte Änderungen (Ergebnis eines [Group]-Befehls).
   void apply(List<Change> changes) {
     if (changes.isEmpty) return;
-    outbox.add(changes);
+    // Rein lokale Gruppen brauchen keine Outbox; beim Teilen wird der
+    // vollständige Stand verschickt (siehe [share]).
+    if (info.backend != null) outbox.add(changes);
     _changed();
     unawaited(flush());
   }
@@ -112,6 +114,15 @@ class GroupSession extends ChangeNotifier {
     _privateDirty = true;
     _changed();
     unawaited(flush());
+  }
+
+  /// Macht aus einer lokalen Gruppe eine geteilte: Der vollständige Stand
+  /// wird zum Verschicken vorgemerkt.
+  void share(Map<String, Object?> backend) {
+    info.backend = backend;
+    outbox.add(group.replica.snapshot());
+    _privateDirty = true;
+    _changed();
   }
 
   /// Verbindet die Gruppe mit einem Sync-Dienst.

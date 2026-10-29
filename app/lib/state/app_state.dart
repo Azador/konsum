@@ -144,6 +144,9 @@ class AppState extends ChangeNotifier {
     _changed();
   }
 
+  /// Nach Änderungen an [GroupInfo] (z. B. Sync-Verbindung) speichern.
+  void notifyGroupChanged() => _changed();
+
   void renameGroup(GroupSession g, String name) {
     g.info.name = name;
     _changed();

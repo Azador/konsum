@@ -10,12 +10,14 @@ Details: [KONZEPT.md](KONZEPT.md)
 | Verzeichnis | Inhalt |
 |---|---|
 | `packages/konsum_core` | Datenmodell und Konfliktauflösung (reines Dart) |
+| `packages/konsum_matrix` | Matrix als Sync-Backend |
 | `app` | Flutter-App für Android, Linux, iOS und Web |
 
 ## Entwicklung
 
 ```bash
 cd packages/konsum_core && dart test     # Core-Tests
+cd packages/konsum_matrix && dart test   # Matrix-Protokoll-Tests
 cd app && flutter test                   # App-Tests
 cd app && flutter run -d linux           # Linux-App starten
 cd app && flutter run -d chrome          # Web-App starten

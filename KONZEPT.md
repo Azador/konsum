@@ -152,7 +152,20 @@ Quelle nennen.
 - Web-App wird lokal ausgeliefert, Server-Konfiguration liegt im Repo (2026-10-29)
 - Name „Konsum“, App-ID `de.azador.konsum` (2026-10-29)
 - HTTPS im LAN über Caddy mit lokaler CA (2026-10-29)
+- Ein Matrix-Konto pro App-Installation; Gruppen auf anderen Servern über
+  Föderation (2026-10-29)
+- Ende-zu-Ende-Verschlüsselung vorerst aus: Die Bibliothek (vodozemac) muss
+  aus Rust gebaut werden, Rust ist noch nicht installiert. Neue Räume werden
+  daher unverschlüsselt angelegt; Verschlüsselung lässt sich je Raum später
+  einschalten (nicht umkehrbar) (2026-10-29)
+- Das Matrix-SDK (`matrix`, Famedly) steht unter AGPL-3.0. Unser Code bleibt
+  GPL-3.0; die ausgelieferte App als Ganzes unterliegt damit zusätzlich den
+  AGPL-Bedingungen (GPL-3 §13). Für ein offenes Projekt unproblematisch
+  (2026-10-29)
 
 ## Offene Punkte
 
-- keine
+- Rust installieren und Ende-zu-Ende-Verschlüsselung einschalten
+  (`flutter_vodozemac`; fürs Web zusätzlich WASM-Build)
+- Live-Test mit echtem Matrix-Server
+- Web-App: localStorage (ca. 5 MB) ggf. durch IndexedDB ersetzen

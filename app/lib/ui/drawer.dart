@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../state/group_session.dart';
+import 'account_page.dart';
 import 'articles_page.dart';
 import 'categories_page.dart';
 import 'dialogs.dart';
@@ -16,12 +17,24 @@ class GroupDrawer extends StatelessWidget {
   Widget build(BuildContext context) {
     final app = AppScope.of(context);
     final current = app.currentGroup;
+    final matrix = MatrixScope.maybeOf(context);
     return NavigationDrawer(
       children: [
         const Padding(
           padding: EdgeInsets.fromLTRB(28, 16, 16, 10),
           child: Text('Konsum', style: TextStyle(fontSize: 22)),
         ),
+        for (final invite in matrix?.invitations ?? const [])
+          ListTile(
+            contentPadding: const EdgeInsets.only(left: 28, right: 12),
+            leading: const Icon(Icons.mail_outline),
+            title: Text(invite.name),
+            subtitle: const Text('Einladung'),
+            trailing: TextButton(
+              onPressed: matrix!.busy ? null : () => matrix.join(invite),
+              child: const Text('Beitreten'),
+            ),
+          ),
         for (final g in app.groups) ...[
           ListTile(
             contentPadding: const EdgeInsets.only(left: 28, right: 12),
@@ -98,6 +111,16 @@ class GroupDrawer extends StatelessWidget {
             leading: const Icon(Icons.storefront_outlined),
             title: const Text('Läden'),
             onTap: () => _push(context, ShopsPage(session: current)),
+          ),
+        ],
+        if (matrix != null) ...[
+          const Divider(indent: 28, endIndent: 28),
+          ListTile(
+            contentPadding: const EdgeInsets.only(left: 28, right: 16),
+            leading: const Icon(Icons.account_circle_outlined),
+            title: const Text('Matrix-Konto'),
+            subtitle: Text(matrix.userId ?? 'Nicht angemeldet'),
+            onTap: () => _push(context, const AccountPage()),
           ),
         ],
       ],

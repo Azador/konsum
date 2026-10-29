@@ -5,6 +5,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:intl/date_symbol_data_local.dart';
 
 import 'state/app_state.dart';
+import 'state/matrix_service.dart';
 import 'storage/store.dart';
 import 'ui/dialogs.dart';
 import 'ui/drawer.dart';
@@ -15,31 +16,41 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await initializeDateFormatting('de');
   final state = await AppState.load(await openStore());
-  Timer.periodic(const Duration(seconds: 30), (_) => state.flushAll());
-  runApp(KonsumApp(state: state));
+  final matrix = MatrixService(state);
+  Timer.periodic(const Duration(seconds: 30), (_) {
+    state.flushAll();
+    if (matrix.isLoggedIn) matrix.connectAll();
+  });
+  runApp(KonsumApp(state: state, matrix: matrix));
+  // Erst nach dem Start: Die Liste soll auch ohne Netz sofort da sein.
+  unawaited(matrix.init());
 }
 
 class KonsumApp extends StatelessWidget {
-  const KonsumApp({super.key, required this.state});
+  const KonsumApp({super.key, required this.state, this.matrix});
 
   final AppState state;
+  final MatrixService? matrix;
 
   @override
-  Widget build(BuildContext context) => AppScope(
-    state: state,
-    child: MaterialApp(
-      title: 'Konsum',
-      theme: ThemeData(colorSchemeSeed: Colors.green),
-      darkTheme: ThemeData(
-        colorSchemeSeed: Colors.green,
-        brightness: Brightness.dark,
+  Widget build(BuildContext context) {
+    final app = AppScope(
+      state: state,
+      child: MaterialApp(
+        title: 'Konsum',
+        theme: ThemeData(colorSchemeSeed: Colors.green),
+        darkTheme: ThemeData(
+          colorSchemeSeed: Colors.green,
+          brightness: Brightness.dark,
+        ),
+        locale: const Locale('de'),
+        supportedLocales: const [Locale('de')],
+        localizationsDelegates: GlobalMaterialLocalizations.delegates,
+        home: const HomePage(),
       ),
-      locale: const Locale('de'),
-      supportedLocales: const [Locale('de')],
-      localizationsDelegates: GlobalMaterialLocalizations.delegates,
-      home: const HomePage(),
-    ),
-  );
+    );
+    return matrix == null ? app : MatrixScope(service: matrix!, child: app);
+  }
 }
 
 class HomePage extends StatelessWidget {
