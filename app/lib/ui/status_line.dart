@@ -9,14 +9,16 @@ class StatusLine extends StatelessWidget {
   const StatusLine({super.key});
 
   static const height = 40.0;
-  static const _background = Color(0xFF101410);
 
   @override
   Widget build(BuildContext context) {
     final status = AppScope.of(context).status;
-    final textTheme = Theme.of(context).textTheme;
+    final theme = Theme.of(context);
+    final colors = theme.colorScheme;
+    final textTheme = theme.textTheme;
+    // Etwas abgesetzt vom Hintergrund, in hellem wie dunklem Design.
     return ColoredBox(
-      color: _background,
+      color: colors.surfaceContainerLow,
       child: SafeArea(
         top: false,
         child: SizedBox(
@@ -29,7 +31,9 @@ class StatusLine extends StatelessWidget {
                 return Center(
                   child: Text(
                     status.version.isEmpty ? '' : 'Konsum ${status.version}',
-                    style: textTheme.bodySmall?.copyWith(color: Colors.white38),
+                    style: textTheme.bodySmall?.copyWith(
+                      color: colors.onSurfaceVariant.withValues(alpha: 0.6),
+                    ),
                   ),
                 );
               }
@@ -42,16 +46,13 @@ class StatusLine extends StatelessWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: textTheme.bodyMedium?.copyWith(
-                        color: Colors.white,
+                        color: colors.onSurface,
                       ),
                     ),
                   ),
                   if (message.actionLabel != null)
                     TextButton(
                       onPressed: status.runAction,
-                      style: TextButton.styleFrom(
-                        foregroundColor: const Color(0xFF9CD67D),
-                      ),
                       child: Text(message.actionLabel!),
                     ),
                   const SizedBox(width: 8),
