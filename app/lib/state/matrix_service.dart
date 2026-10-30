@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_vodozemac/flutter_vodozemac.dart' as vod;
 import 'package:konsum_matrix/konsum_matrix.dart';
+import 'package:matrix/encryption.dart';
 import 'package:matrix/matrix.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -34,6 +35,18 @@ class ServerLogin {
   final bool password;
 }
 
+/// Ob andere Geräte diesem Gerät vertrauen.
+enum SessionTrust {
+  /// Nicht angemeldet, ohne Verschlüsselung oder Schlüssel noch nicht geladen.
+  unknown,
+
+  /// Für das Konto ist kein Cross-Signing eingerichtet.
+  noCrossSigning,
+
+  unverified,
+  verified,
+}
+
 /// Matrix-Konto der App: Anmeldung, Gruppen teilen, Einladungen annehmen,
 /// Gruppen mit ihrem Raum verbinden.
 ///
@@ -46,6 +59,7 @@ class MatrixService extends ChangeNotifier {
   final AppState _app;
   Client? _client;
   StreamSubscription<Object?>? _syncSub;
+  StreamSubscription<Object?>? _verificationSub;
   String? error;
   bool busy = false;
 
@@ -62,6 +76,24 @@ class MatrixService extends ChangeNotifier {
   bool get isLoggedIn => _client?.isLogged() ?? false;
   String? get userId => _client?.userID;
   String? get homeserver => _client?.homeserver?.toString();
+
+  /// Die laufende Verifizierung, ausgehend oder von einem anderen Gerät
+  /// angefragt; null, wenn keine läuft.
+  KeyVerification? verification;
+
+  SessionTrust get sessionTrust {
+    final client = _client;
+    final encryption = client?.encryption;
+    if (client == null || !client.isLogged() || encryption == null) {
+      return SessionTrust.unknown;
+    }
+    final keys = client.userDeviceKeys[client.userID];
+    if (keys?.deviceKeys[client.deviceID] == null) return SessionTrust.unknown;
+    if (keys!.masterKey == null) return SessionTrust.noCrossSigning;
+    return encryption.crossSigning.isSelfSigned
+        ? SessionTrust.verified
+        : SessionTrust.unverified;
+  }
 
   MatrixGroups? get _groups => isLoggedIn ? MatrixGroups(_client!) : null;
 
@@ -92,6 +124,11 @@ class MatrixService extends ChangeNotifier {
         // Konsum-Geräte von Konten mit Cross-Signing (z. B. durch Element)
         // keine Schlüssel und könnten nichts entschlüsseln.
         shareKeysWith: ShareKeysWith.all,
+        // QR-Codes nicht: Dafür bräuchte es die Kamera auch unter Linux.
+        verificationMethods: {
+          KeyVerificationMethod.emoji,
+          KeyVerificationMethod.numbers,
+        },
       );
       _client = client;
       await client.init(waitForFirstSync: false);
@@ -99,6 +136,7 @@ class MatrixService extends ChangeNotifier {
         notifyListeners();
         unawaited(_adoptJoinedRooms());
       });
+      _verificationSub = client.onKeyVerificationRequest.stream.listen(_track);
       if (isLoggedIn) await connectAll();
     } catch (e) {
       error = 'Matrix nicht verfügbar: $e';
@@ -231,6 +269,51 @@ class MatrixService extends ChangeNotifier {
     }
     await _client?.logout();
   });
+
+  /// Bittet die anderen Geräte des Kontos, dieses Gerät zu bestätigen
+  /// (Emojis vergleichen).
+  Future<bool> verifyWithOtherDevice() => _run(() async {
+    final keys = _client!.userDeviceKeys[_client!.userID];
+    if (keys == null) throw StateError('Geräteschlüssel noch nicht geladen');
+    _track(await keys.startVerification());
+  });
+
+  /// Bestätigt dieses Gerät mit dem Wiederherstellungsschlüssel oder der
+  /// Sicherheits-Passphrase des Kontos.
+  Future<bool> verifyWithRecoveryKey(String key) => _run(() async {
+    try {
+      await _client!.encryption!.crossSigning.selfSign(
+        keyOrPassphrase: key.trim(),
+      );
+    } on InvalidPassphraseException {
+      throw StateError('Schlüssel oder Passphrase stimmt nicht');
+    } on Exception catch (e) {
+      if ('$e'.contains('Bad MAC')) {
+        throw StateError('Schlüssel oder Passphrase stimmt nicht');
+      }
+      rethrow;
+    }
+  });
+
+  /// Merkt sich [request] als laufende Verifizierung. Läuft schon eine,
+  /// wird die neue abgelehnt.
+  void _track(KeyVerification request) {
+    final current = verification;
+    if (current != null && current != request && !current.isDone) {
+      unawaited(request.rejectVerification());
+      return;
+    }
+    verification = request..onUpdate = notifyListeners;
+    notifyListeners();
+  }
+
+  /// Schließt die Verifizierung; bricht sie ab, wenn sie noch läuft.
+  Future<void> closeVerification() async {
+    final current = verification;
+    verification = null;
+    notifyListeners();
+    if (current != null && !current.isDone) await current.cancel('m.user');
+  }
 
   /// Verbindet alle Matrix-Gruppen mit ihrem Raum.
   Future<void> connectAll() async {
@@ -376,6 +459,7 @@ class MatrixService extends ChangeNotifier {
   @override
   void dispose() {
     _syncSub?.cancel();
+    _verificationSub?.cancel();
     super.dispose();
   }
 }

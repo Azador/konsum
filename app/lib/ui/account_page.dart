@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../state/matrix_service.dart';
+import 'dialogs.dart';
 import 'scope.dart';
 
 /// Anmeldung am Matrix-Server oder neues Konto anlegen.
@@ -58,6 +59,7 @@ class _AccountPageState extends State<AccountPage> {
               title: Text(matrix.userId ?? ''),
               subtitle: Text(matrix.homeserver ?? ''),
             ),
+            ..._trust(matrix),
             const SizedBox(height: 16),
             OutlinedButton.icon(
               icon: const Icon(Icons.logout),
@@ -96,6 +98,66 @@ class _AccountPageState extends State<AccountPage> {
         ],
       ),
     );
+  }
+
+  /// Ob dieses Gerät verifiziert ist, und wie man es verifiziert.
+  List<Widget> _trust(MatrixService matrix) {
+    final busy = matrix.busy;
+    return switch (matrix.sessionTrust) {
+      SessionTrust.unknown => const [],
+      SessionTrust.verified => const [
+        ListTile(
+          leading: Icon(Icons.verified_user_outlined),
+          title: Text('Dieses Gerät ist verifiziert'),
+        ),
+      ],
+      SessionTrust.noCrossSigning => const [
+        ListTile(
+          leading: Icon(Icons.info_outline),
+          title: Text('Geräte-Verifizierung nicht eingerichtet'),
+          subtitle: Text(
+            'Für dieses Konto gibt es noch kein Cross-Signing. Richte es in '
+            'einer anderen Matrix-App ein (z. B. Element), danach lässt sich '
+            'dieses Gerät hier verifizieren.',
+          ),
+        ),
+      ],
+      SessionTrust.unverified => [
+        const ListTile(
+          leading: Icon(Icons.gpp_maybe_outlined),
+          title: Text('Dieses Gerät ist nicht verifiziert'),
+          subtitle: Text(
+            'Andere sehen es als unbekanntes Gerät. Bestätige es mit einem '
+            'anderen angemeldeten Gerät oder dem Wiederherstellungsschlüssel.',
+          ),
+        ),
+        const SizedBox(height: 8),
+        FilledButton.icon(
+          icon: const Icon(Icons.devices_outlined),
+          label: const Text('Mit anderem Gerät verifizieren'),
+          onPressed: busy ? null : matrix.verifyWithOtherDevice,
+        ),
+        const SizedBox(height: 8),
+        OutlinedButton.icon(
+          icon: const Icon(Icons.key_outlined),
+          label: const Text('Mit Wiederherstellungsschlüssel'),
+          onPressed: busy ? null : () => _recoveryKey(matrix),
+        ),
+      ],
+    };
+  }
+
+  Future<void> _recoveryKey(MatrixService matrix) async {
+    final key = await promptText(
+      context,
+      title: 'Wiederherstellungsschlüssel',
+      label: 'Schlüssel oder Sicherheits-Passphrase',
+      confirm: 'Verifizieren',
+    );
+    if (key == null) return;
+    if (await matrix.verifyWithRecoveryKey(key) && mounted) {
+      AppScope.of(context).status.show('Dieses Gerät ist jetzt verifiziert');
+    }
   }
 
   List<Widget> _serverStep(MatrixService matrix) => [

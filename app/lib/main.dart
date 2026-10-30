@@ -12,6 +12,7 @@ import 'ui/dialogs.dart';
 import 'ui/drawer.dart';
 import 'ui/list_page.dart';
 import 'ui/scope.dart';
+import 'ui/verification_page.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -33,10 +34,11 @@ Future<void> main() async {
 }
 
 class KonsumApp extends StatelessWidget {
-  const KonsumApp({super.key, required this.state, this.matrix});
+  KonsumApp({super.key, required this.state, this.matrix});
 
   final AppState state;
   final MatrixService? matrix;
+  final _navigator = GlobalKey<NavigatorState>();
 
   @override
   Widget build(BuildContext context) {
@@ -44,6 +46,9 @@ class KonsumApp extends StatelessWidget {
       state: state,
       child: MaterialApp(
         title: 'Konsum',
+        navigatorKey: _navigator,
+        builder: (context, child) =>
+            VerificationListener(navigator: _navigator, child: child!),
         theme: ThemeData(colorSchemeSeed: Colors.green),
         darkTheme: ThemeData(
           colorSchemeSeed: Colors.green,
