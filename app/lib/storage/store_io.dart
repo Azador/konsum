@@ -1,11 +1,10 @@
 import 'dart:io';
 
-import 'package:path_provider/path_provider.dart';
-
+import 'private_dir_io.dart';
 import 'store.dart';
 
 Future<KeyValueStore> openStore() async {
-  final base = await getApplicationSupportDirectory();
+  final base = await privateSupportDirectory();
   return FileStore(Directory('${base.path}/data'));
 }
 

@@ -1,3 +1,6 @@
 import 'package:matrix/matrix.dart';
 
-Future<DatabaseApi> open(String name) => MatrixSdkDatabase.init(name);
+import 'matrix_db.dart';
+
+Future<MatrixDatabase> open(String name) async =>
+    (database: await MatrixSdkDatabase.init(name), warning: null);

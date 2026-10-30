@@ -82,9 +82,11 @@ class MatrixService extends ChangeNotifier {
       } catch (e) {
         debugPrint('Verschlüsselung nicht verfügbar: $e');
       }
+      final db = await openMatrixDatabase('konsum_matrix');
+      if (db.warning != null) _app.status.show(db.warning!);
       final client = Client(
         'Konsum',
-        database: await openMatrixDatabase('konsum_matrix'),
+        database: db.database,
         // Konsum-Ereignisse verschicken nur Konsum-Geräte, und die können
         // (noch) nicht verifizieren. Mit der Standardeinstellung bekämen
         // Konsum-Geräte von Konten mit Cross-Signing (z. B. durch Element)
