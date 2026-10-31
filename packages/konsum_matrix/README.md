@@ -13,7 +13,7 @@ Git-Repository eingebunden. `konsum_core` kommt dabei automatisch mit.
 dependencies:
   konsum_matrix:
     git:
-      url: <Adresse des Konsum-Repositorys>
+      url: https://github.com/Azador/konsum.git
       path: packages/konsum_matrix
       ref: main            # oder ein Commit/Tag, um den Stand festzuhalten
   matrix: ^14.2.0
