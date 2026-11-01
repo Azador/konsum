@@ -13,8 +13,10 @@ plugins {
 //   keyPassword=…   (optional, sonst wie storePassword)
 // Fehlt die Datei, entsteht ein unsigniertes Release (z. B. für F-Droid,
 // das selbst signiert).
+// Für Google Play mit dem Upload-Schlüssel signieren:
+//   KONSUM_KEY_PROPERTIES=upload.properties flutter build appbundle
 val keyProperties = Properties().apply {
-    val file = rootProject.file("key.properties")
+    val file = rootProject.file(System.getenv("KONSUM_KEY_PROPERTIES") ?: "key.properties")
     if (file.exists()) file.inputStream().use { load(it) }
 }
 

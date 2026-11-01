@@ -18,9 +18,6 @@ Builds:
     versionCode: 13
     commit: v0.6.6
     subdir: app
-    output: build/app/outputs/flutter-apk/app-release.apk
-    srclibs:
-      - flutter@3.47.8
     sudo:
       - apt-get update
       - apt-get install -y curl
@@ -29,6 +26,9 @@ Builds:
       - /tmp/rustup-init -y --profile minimal --default-toolchain stable
       - ~/.cargo/bin/rustup target add armv7-linux-androideabi aarch64-linux-android
         x86_64-linux-android
+    output: build/app/outputs/flutter-apk/app-release.apk
+    srclibs:
+      - flutter@3.47.8
     prebuild:
       - export PUB_CACHE=$(pwd)/.pub-cache
       - $$flutter$$/bin/flutter config --no-analytics

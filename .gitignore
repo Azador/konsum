@@ -13,3 +13,6 @@ app/web/fonts/fallback/
 .idea/
 *.iml
 .vscode/
+
+# Sicherungsdateien von Editoren (können Passwörter enthalten)
+*~
