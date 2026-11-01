@@ -201,12 +201,16 @@ class _EntrySheetState extends State<_EntrySheet> {
     final group = widget.session.group;
     final article = group.article(widget.entry.articleId)!;
     final last = group.lastPrice(article.id);
+    // Unten frei halten: Tastatur, sonst die Navigationsleiste, unter die
+    // Android 15 (edge-to-edge) die App zeichnet.
+    final bottom = MediaQuery.viewInsetsOf(context).bottom;
+    final navigation = MediaQuery.viewPaddingOf(context).bottom;
     return Padding(
       padding: EdgeInsets.fromLTRB(
         16,
         0,
         16,
-        16 + MediaQuery.viewInsetsOf(context).bottom,
+        16 + (bottom > navigation ? bottom : navigation),
       ),
       child: SingleChildScrollView(
         child: Column(
