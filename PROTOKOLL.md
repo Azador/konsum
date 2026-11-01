@@ -33,7 +33,7 @@ Widersprüchen gilt der Code; bitte dann diese Datei korrigieren.
 Eine Gruppe ist ein Raum, dessen `m.room.create`-Ereignis den Raumtyp trägt:
 
 ```json
-{ "type": "de.azador.konsum.group" }
+{ "type": "de.azadoro.konsum.group" }
 ```
 
 Konsum legt Räume so an:
@@ -41,13 +41,22 @@ Konsum legt Räume so an:
 | Einstellung | Wert |
 |---|---|
 | `preset` | `private_chat` (nur Eingeladene können beitreten) |
-| `creation_content.type` | `de.azador.konsum.group` |
+| `creation_content.type` | `de.azadoro.konsum.group` |
 | `m.room.history_visibility` | `shared` |
 | `m.room.encryption` | `m.megolm.v1.aes-sha2`, wenn der Client verschlüsseln kann |
 | `m.room.name` | Name der Gruppe |
 
 Ein Client erkennt Konsum-Gruppen ausschließlich am Raumtyp. Räume ohne
 diesen Typ sind keine Konsum-Gruppen.
+
+### Alte Räume (`de.azador.konsum`)
+
+Bis App-Version 0.3 hieß der Namensraum `de.azador.konsum`. Räume mit dem
+Raumtyp `de.azador.konsum.group` sind ebenfalls Konsum-Gruppen. In ihnen
+gelten durchgehend die alten Namen (`de.azador.konsum.changes`,
+`.snapshot_request`, `.private`), damit ältere Installationen weiter
+mitlesen. Ein Raum wechselt seinen Namensraum nie; neue Räume werden immer
+mit `de.azadoro.konsum` angelegt. Inhalte und Abläufe sind in beiden gleich.
 
 **Verschlüsselung:** Gruppen sind normalerweise Ende-zu-Ende-verschlüsselt.
 Ein Client, der Megolm nicht kann, sieht in solchen Räumen nur
@@ -63,7 +72,7 @@ nicht lesen.
 Alle Inhalte sind JSON-Objekte mit dem Feld `v` (Protokollversion, derzeit
 `1`). Inhalte mit einer anderen Version werden ignoriert.
 
-### `de.azador.konsum.changes` (Timeline)
+### `de.azadoro.konsum.changes` (Timeline)
 
 Änderungen an den Gruppendaten.
 
@@ -87,7 +96,7 @@ Alle Inhalte sind JSON-Objekte mit dem Feld `v` (Protokollversion, derzeit
 den Inhalt). Mehr Changes werden auf mehrere Ereignisse verteilt. Die
 Aufteilung hat keine Bedeutung; Empfänger behandeln jedes Ereignis für sich.
 
-### `de.azador.konsum.snapshot_request` (Timeline)
+### `de.azadoro.konsum.snapshot_request` (Timeline)
 
 Bitte um den vollständigen Stand.
 
@@ -95,10 +104,10 @@ Bitte um den vollständigen Stand.
 { "v": 1, "device": "ABCDEFGHIJ" }
 ```
 
-### `de.azador.konsum.private` (Room Account Data)
+### `de.azadoro.konsum.private` (Room Account Data)
 
 Private Daten des Benutzers in dieser Gruppe, als **vollständiger Stand**
-(nicht als Änderung). Gleicher Aufbau wie `de.azador.konsum.changes`, ohne
+(nicht als Änderung). Gleicher Aufbau wie `de.azadoro.konsum.changes`, ohne
 `snapshot`, immer als ein einziges Objekt:
 
 ```json
@@ -190,13 +199,13 @@ alle Felder eines neuen Artikels), bekommen denselben Zeitstempel.
 ### Senden
 
 Jede lokale Änderung erzeugt Changes, die sofort lokal angewendet und dann als
-`de.azador.konsum.changes` verschickt werden. Ist das Gerät offline, bleiben
+`de.azadoro.konsum.changes` verschickt werden. Ist das Gerät offline, bleiben
 sie in einer Warteschlange und gehen später raus. Ein Gerät sendet nur
 Changes, die es selbst erzeugt hat – außer im Schnappschuss.
 
 ### Empfangen
 
-- `de.azador.konsum.changes`: Ereignisse des **eigenen Geräts** (Absender =
+- `de.azadoro.konsum.changes`: Ereignisse des **eigenen Geräts** (Absender =
   eigenes Konto **und** `device` = eigene Geräte-ID) überspringen; alle
   anderen anwenden. Andere Geräte desselben Kontos werden also ganz normal
   behandelt.
@@ -206,7 +215,7 @@ Changes, die es selbst erzeugt hat – außer im Schnappschuss.
 
 ### Schnappschuss anfordern
 
-Ein Gerät sendet `de.azador.konsum.snapshot_request`,
+Ein Gerät sendet `de.azadoro.konsum.snapshot_request`,
 
 - wenn es eine Gruppe öffnet und lokal noch keine Daten dazu hat,
 - wenn der Server nach längerer Offline-Zeit nicht alle Ereignisse liefert
@@ -230,13 +239,13 @@ Es wartet eine zufällige Zeit zwischen 0 und 3 Sekunden. Ist bis dahin kein
 Schnappschuss eines anderen Geräts eingetroffen und ist der eigene Stand nicht
 leer, schickt es seinen **vollständigen Stand** (alle Felder aller Objekte,
 inklusive Tombstones und unbekannter Typen, jeweils mit ihrem gespeicherten
-Zeitstempel) als `de.azador.konsum.changes` mit `snapshot: true`, aufgeteilt
+Zeitstempel) als `de.azadoro.konsum.changes` mit `snapshot: true`, aufgeteilt
 nach der Größengrenze. Mehrere gleichzeitige Schnappschüsse schaden nicht,
 sie kosten nur Platz.
 
 ### Private Daten
 
-Beim Öffnen liest das Gerät `de.azador.konsum.private` aus der Room Account
+Beim Öffnen liest das Gerät `de.azadoro.konsum.private` aus der Room Account
 Data und wendet die Changes an. Nach einer lokalen Änderung schreibt es den
 **vollständigen** privaten Stand zurück. Kommt über den Sync eine neue Fassung
 (von einem anderen eigenen Gerät), wird sie mit derselben Regel wie oben
@@ -366,7 +375,7 @@ anzeigen.
 
 ### Private Daten: `note`
 
-In `de.azador.konsum.private`. ID: die ID des Listeneintrags
+In `de.azadoro.konsum.private`. ID: die ID des Listeneintrags
 (`<listId>/<articleId>`).
 
 | Feld | Typ |
@@ -376,7 +385,7 @@ In `de.azador.konsum.private`. ID: die ID des Listeneintrags
 ## Beispiel: „Milch“ auf die Liste setzen
 
 Die Liste `0a1b…` existiert, der Artikel noch nicht. Ein Ereignis
-`de.azador.konsum.changes`:
+`de.azadoro.konsum.changes`:
 
 ```json
 {

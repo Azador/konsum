@@ -58,7 +58,7 @@ class OpenFoodFacts {
           // Im Browser darf der User-Agent nicht gesetzt werden.
           headers: kIsWeb
               ? const {}
-              : const {'User-Agent': 'Konsum/0.1 (de.azador.konsum)'},
+              : const {'User-Agent': 'Konsum/0.1 (de.azadoro.konsum)'},
         )
         .timeout(const Duration(seconds: 10));
     if (res.statusCode == 404) return null;

@@ -1,6 +1,6 @@
 # Konsum – Konzept
 
-Einkaufsliste für Haushalte und Vereine. App-ID: `de.azador.konsum`
+Einkaufsliste für Haushalte und Vereine. App-ID: `de.azadoro.konsum`
 
 Stand: 2026-10-29 · Status: **Entwurf** (offene Punkte siehe unten)
 
@@ -91,7 +91,7 @@ Lokale Datenhaltung: SQLite (über `drift`), im Web über IndexedDB/WASM.
 
 - **Gruppe = Matrix-Raum** (verschlüsselt). Einladen/Entfernen von Mitgliedern
   über die normale Matrix-Raumverwaltung, auch aus Element o. ä. heraus.
-- Änderungen werden als eigene Ereignisse (`de.azador.konsum.changes`) in den Raum
+- Änderungen werden als eigene Ereignisse (`de.azadoro.konsum.changes`) in den Raum
   geschrieben: *Objekt-ID, Feld, neuer Wert, Zeitstempel (Hybrid Logical Clock), Gerät*.
 - Jeder Client wendet die Ereignisse auf seine lokale Datenbank an.
   Konflikte: **die letzte Änderung gewinnt, pro Feld** – gleichzeitiges Ändern von
@@ -152,7 +152,8 @@ Quelle nennen.
 - Sync-Backend: Matrix (2026-10-29)
 - Artikelstamm, Kategorien und Läden gehören zur Gruppe (2026-10-29)
 - Web-App wird lokal ausgeliefert, Server-Konfiguration liegt im Repo (2026-10-29)
-- Name „Konsum“, App-ID `de.azador.konsum` (2026-10-29)
+- Name „Konsum“, App-ID `de.azador.konsum` (2026-10-29); geändert in
+  `de.azadoro.konsum`, weil `azador.de` jemand anderem gehört (2026-11-01)
 - HTTPS im LAN über Caddy mit lokaler CA (2026-10-29)
 - Ein Matrix-Konto pro App-Installation; Gruppen auf anderen Servern über
   Föderation (2026-10-29)
@@ -171,8 +172,8 @@ Quelle nennen.
 
 - Anmeldung und neue Konten über die Webseite des Servers (OIDC, MSC2964/
   MSC2966), wo der Server das anbietet (z. B. matrix.org); sonst Passwort.
-  Rückweg: Android `de.azador.konsum:/oauth`, Linux `http://127.0.0.1:<Port>`.
-  Die Client-Adresse muss dazu `https://konsum.azador.de` sein (umgekehrtes
+  Rückweg: Android `de.azadoro.konsum:/oauth`, Linux `http://127.0.0.1:<Port>`.
+  Die Client-Adresse muss dazu `https://konsum.azadoro.de` sein (umgekehrtes
   App-Schema); sie wird auf der Anmeldeseite angezeigt (2026-10-29)
 
 - Verschlüsselung auch in der Web-App: vodozemac als WebAssembly
@@ -183,12 +184,17 @@ Quelle nennen.
   Dart-Pakete per Git-Abhängigkeit einbindbar; ein Test hält das Format
   fest (2026-10-30)
 
+- Namensraum der Matrix-Ereignisse `de.azadoro.konsum`. Räume aus der Zeit vor
+  der Umbenennung (`de.azador.konsum.group`) werden weiter erkannt und
+  behalten ihre alten Ereignistypen; unter Linux zieht das Datenverzeichnis
+  einmalig um (2026-11-01)
+
 ## Offene Punkte
 
 - Web-App: Anmeldung im Browser (OIDC) braucht noch den Rückweg auf die
   eigene Seite; bis dahin nur Passwort
 - Geräte-Verifizierung, Schlüssel-Backup
-- Unter `https://konsum.azador.de` eine kleine Projektseite (wird bei der
+- Unter `https://konsum.azadoro.de` eine kleine Projektseite (wird bei der
   Anmeldung als Adresse der App angezeigt)
 - Live-Test der Web-App mit Verschlüsselung (Caddy auf loboci)
 - Web-App: localStorage (ca. 5 MB) ggf. durch IndexedDB ersetzen

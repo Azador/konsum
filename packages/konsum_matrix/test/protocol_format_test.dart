@@ -9,11 +9,26 @@ import 'package:test/test.dart';
 /// ob `KonsumEvents.version` steigen muss.
 void main() {
   test('Namen der Ereignistypen', () {
-    expect(KonsumEvents.roomType, 'de.azador.konsum.group');
-    expect(KonsumEvents.changes, 'de.azador.konsum.changes');
-    expect(KonsumEvents.snapshotRequest, 'de.azador.konsum.snapshot_request');
-    expect(KonsumEvents.private, 'de.azador.konsum.private');
+    expect(KonsumEvents.roomType, 'de.azadoro.konsum.group');
+    expect(KonsumEvents.changes, 'de.azadoro.konsum.changes');
+    expect(KonsumEvents.snapshotRequest, 'de.azadoro.konsum.snapshot_request');
+    expect(KonsumEvents.private, 'de.azadoro.konsum.private');
     expect(KonsumEvents.version, 1);
+  });
+
+  test('Alte Räume (de.azador.konsum) behalten ihre Namen', () {
+    const old = KonsumEventNames.legacy;
+    expect(old.roomType, 'de.azador.konsum.group');
+    expect(old.changes, 'de.azador.konsum.changes');
+    expect(old.snapshotRequest, 'de.azador.konsum.snapshot_request');
+    expect(old.private, 'de.azador.konsum.private');
+    expect(KonsumEventNames.forRoomType('de.azador.konsum.group'), old);
+    expect(
+      KonsumEventNames.forRoomType('de.azadoro.konsum.group'),
+      KonsumEventNames.current,
+    );
+    expect(KonsumEventNames.forRoomType('m.space'), isNull);
+    expect(KonsumEventNames.forRoomType(null), isNull);
   });
 
   test('Beispiel „Milch auf die Liste“', () {

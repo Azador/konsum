@@ -215,8 +215,8 @@ class MatrixService extends ChangeNotifier {
         applicationType: OidcApplicationType.native,
         clientInformation: OidcClientInformation(
           clientName: 'Konsum',
-          // Der Host muss das umgekehrte App-Schema sein (de.azador.konsum).
-          clientUri: Uri.parse('https://konsum.azador.de'),
+          // Der Host muss das umgekehrte App-Schema sein (de.azadoro.konsum).
+          clientUri: Uri.parse('https://konsum.azadoro.de'),
           logoUri: null,
           tosUri: null,
           policyUri: null,

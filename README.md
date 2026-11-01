@@ -28,7 +28,7 @@ cd app && flutter run -d linux           # Linux-App starten
 cd app && flutter run -d chrome          # Web-App starten
 ```
 
-Lokale Daten der Linux-App: `~/.local/share/de.azador.konsum/data/`
+Lokale Daten der Linux-App: `~/.local/share/de.azadoro.konsum/data/`
 
 ## Lizenz
 

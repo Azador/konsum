@@ -6,15 +6,15 @@ import 'package:app_links/app_links.dart';
 import 'oidc_redirect.dart';
 
 /// Eigenes Schema der App. Muss der umgekehrte Host der Client-Adresse sein
-/// (`konsum.azador.de`), sonst lehnt der Server die Registrierung ab.
-const oidcScheme = 'de.azador.konsum';
+/// (`konsum.azadoro.de`), sonst lehnt der Server die Registrierung ab.
+const oidcScheme = 'de.azadoro.konsum';
 
 Future<OidcRedirect?> openOidcRedirect() async {
   if (Platform.isAndroid || Platform.isIOS) return _AppLinkRedirect();
   return _LoopbackRedirect.open();
 }
 
-/// Android/iOS: Der Browser ruft `de.azador.konsum:/oauth` auf, das System
+/// Android/iOS: Der Browser ruft `de.azadoro.konsum:/oauth` auf, das System
 /// gibt die Adresse an die laufende App.
 class _AppLinkRedirect implements OidcRedirect {
   final _links = AppLinks();

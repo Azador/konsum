@@ -1,4 +1,4 @@
-package de.azador.konsum
+package de.azadoro.konsum
 
 import io.flutter.embedding.android.FlutterActivity
 

@@ -5,22 +5,66 @@ import 'package:konsum_core/konsum_core.dart';
 /// Ereignistypen und Inhalte, mit denen Konsum Daten in Matrix-Räumen ablegt.
 abstract final class KonsumEvents {
   /// Raumtyp im `m.room.create`-Ereignis, kennzeichnet Konsum-Gruppen.
-  static const roomType = 'de.azador.konsum.group';
+  static const roomType = 'de.azadoro.konsum.group';
 
   /// Änderungen an den Gruppendaten (Timeline-Ereignis, verschlüsselt).
-  static const changes = 'de.azador.konsum.changes';
+  static const changes = 'de.azadoro.konsum.changes';
 
   /// Bitte um den vollständigen Stand (neues Gerät oder neues Mitglied).
-  static const snapshotRequest = 'de.azador.konsum.snapshot_request';
+  static const snapshotRequest = 'de.azadoro.konsum.snapshot_request';
 
   /// Private Daten eines Benutzers (Room Account Data).
-  static const private = 'de.azador.konsum.private';
+  static const private = 'de.azadoro.konsum.private';
 
   static const version = 1;
 
   /// Obergrenze für den JSON-Text eines Ereignisses. Matrix erlaubt 64 KiB
   /// pro Ereignis, Verschlüsselung (Base64) macht es ca. ein Drittel größer.
   static const maxChunkBytes = 24 * 1024;
+}
+
+/// Die Namen der Ereignistypen, die in einem Raum gelten. Sie hängen am
+/// Raumtyp: Ein Raum verwendet durchgehend die Namen, unter denen er angelegt
+/// wurde, damit alle Geräte darin dieselben Ereignisse sehen.
+final class KonsumEventNames {
+  const KonsumEventNames({
+    required this.roomType,
+    required this.changes,
+    required this.snapshotRequest,
+    required this.private,
+  });
+
+  final String roomType;
+  final String changes;
+  final String snapshotRequest;
+  final String private;
+
+  /// Für neue Räume.
+  static const current = KonsumEventNames(
+    roomType: KonsumEvents.roomType,
+    changes: KonsumEvents.changes,
+    snapshotRequest: KonsumEvents.snapshotRequest,
+    private: KonsumEvents.private,
+  );
+
+  /// Bis App-Version 0.3 (Namensraum `de.azador.konsum`). Solche Räume werden
+  /// weiter erkannt und mit diesen Namen gelesen und beschrieben.
+  static const legacy = KonsumEventNames(
+    roomType: 'de.azador.konsum.group',
+    changes: 'de.azador.konsum.changes',
+    snapshotRequest: 'de.azador.konsum.snapshot_request',
+    private: 'de.azador.konsum.private',
+  );
+
+  static const all = [current, legacy];
+
+  /// Die Namen zum Raumtyp aus `m.room.create`, null bei fremden Räumen.
+  static KonsumEventNames? forRoomType(Object? type) {
+    for (final names in all) {
+      if (names.roomType == type) return names;
+    }
+    return null;
+  }
 }
 
 /// Teilt Änderungen in Ereignis-Inhalte auf, die unter der Größengrenze bleiben.

@@ -25,9 +25,12 @@ class MatrixGroups {
 
   final Client client;
 
-  static bool isKonsumRoom(Room room) =>
-      room.getState(EventTypes.RoomCreate)?.content['type'] ==
-      KonsumEvents.roomType;
+  /// Die Ereignistypen des Raums, null wenn er keine Konsum-Gruppe ist.
+  static KonsumEventNames? namesOf(Room room) => KonsumEventNames.forRoomType(
+    room.getState(EventTypes.RoomCreate)?.content['type'],
+  );
+
+  static bool isKonsumRoom(Room room) => namesOf(room) != null;
 
   /// Konsum-Räume, in denen das Konto Mitglied oder eingeladen ist.
   List<MatrixGroupRef> get groups => [
@@ -88,6 +91,11 @@ class MatrixGroups {
   }
 
   /// Verbindung für die Synchronisation der Gruppe.
-  MatrixGroupSync sync(String roomId) =>
-      MatrixGroupSync(SdkRoomTransport(client, roomId));
+  MatrixGroupSync sync(String roomId) {
+    final room = client.getRoomById(roomId);
+    return MatrixGroupSync(
+      SdkRoomTransport(client, roomId),
+      names: (room == null ? null : namesOf(room)) ?? KonsumEventNames.current,
+    );
+  }
 }
