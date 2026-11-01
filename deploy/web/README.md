@@ -97,7 +97,7 @@ ab, sobald Internet da ist.
 - Caddy schickt `Cross-Origin-Opener-Policy`/`Cross-Origin-Embedder-Policy`.
   Die Verschlüsselung braucht diese Isolation (gemeinsamer Speicher für
   WebAssembly). Folge: Fremde Dateien lädt der Browser nur, wenn der
-  fremde Server sie freigibt; unpkg, Google Fonts, Open Food Facts und
+  fremde Server sie freigibt; Google Fonts, Open Food Facts und
   Matrix-Server tun das.
 - In der Web-App gibt es nur die Anmeldung mit Passwort. Ein neues Konto
   legst du in der Android- oder Linux-App an.
@@ -105,6 +105,9 @@ ab, sobald Internet da ist.
 - `loboci` muss auf allen Geräten auflösbar sein (DNS im Router o. ä.).
   Mobilgeräte lösen reine Hostnamen ohne Domain teils nicht auf; dann
   `KONSUM_HOST` auf einen auflösbaren Namen setzen (z. B. `loboci.fritz.box`).
-- Der Kamera-Scanner im Browser lädt die Bibliothek ZXing von `unpkg.com`.
+- Der Kamera-Scanner im Browser nimmt den eingebauten `BarcodeDetector`
+  (Chrome, Edge), sonst zxing-wasm. Das holt `fetch-zxing.sh` (von
+  `build.sh` aufgerufen) in fester Version mit Prüfsummen nach
+  `app/web/zxing`; die Web-App liefert es selbst aus.
 - Schriften (Roboto) lädt Flutter Web von Google Fonts; ohne Internet wird
   eine Systemschrift verwendet.

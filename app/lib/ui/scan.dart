@@ -1,10 +1,10 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:konsum_core/konsum_core.dart';
-import 'package:mobile_scanner/mobile_scanner.dart';
 
 import '../services/open_food_facts.dart';
 import '../state/group_session.dart';
+import 'camera_scanner.dart';
 import 'dialogs.dart';
 import 'format.dart';
 import 'scope.dart';
@@ -57,13 +57,9 @@ class _ScanPageState extends State<_ScanPage> {
         ),
       ],
     ),
-    body: MobileScanner(
-      onDetect: (capture) {
-        final code = capture.barcodes
-            .map((b) => b.rawValue)
-            .whereType<String>()
-            .firstOrNull;
-        if (code == null || _done) return;
+    body: CameraScanner(
+      onCode: (code) {
+        if (_done) return;
         _done = true;
         Navigator.pop(context, code);
       },

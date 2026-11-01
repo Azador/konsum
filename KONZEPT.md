@@ -184,6 +184,11 @@ Quelle nennen.
   Dart-Pakete per Git-Abhängigkeit einbindbar; ein Test hält das Format
   fest (2026-10-30)
 
+- Barcode-Scanner ohne Google-Dienste (für F-Droid): Android/iOS mit
+  zxing-cpp über `flutter_zxing`, im Browser `BarcodeDetector` oder
+  zxing-wasm, selbst ausgeliefert statt vom CDN. Galerie, Mikrofon- und
+  Speicherberechtigung des Kamera-Plugins sind abgeschaltet (2026-11-01)
+
 - Namensraum der Matrix-Ereignisse `de.azadoro.konsum`. Räume mit dem alten
   Namensraum `de.azador.konsum` werden nicht mehr erkannt; die Daten wurden
   von Hand in neue Gruppen übertragen (2026-11-01)

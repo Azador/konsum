@@ -30,8 +30,8 @@ https://{$KONSUM_HOST:loboci}:{$KONSUM_HTTPS_PORT:8443}, https://localhost:{$KON
 		Referrer-Policy no-referrer
 		# Cross-Origin-Isolation: Die Verschlüsselung (vodozemac als WASM)
 		# braucht gemeinsamen Speicher (SharedArrayBuffer). require-corp statt
-		# credentialless, weil Safari nur das kann. Fremde Dateien (Scanner von
-		# unpkg, Schriften, Produktbilder, Matrix) erlauben das per CORS/CORP.
+		# credentialless, weil Safari nur das kann. Fremde Dateien (Schriften,
+		# Produktbilder, Matrix) erlauben das per CORS/CORP.
 		Cross-Origin-Opener-Policy same-origin
 		Cross-Origin-Embedder-Policy require-corp
 		-Server
