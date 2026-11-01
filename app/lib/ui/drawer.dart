@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../state/group_session.dart';
 import 'account_page.dart';
@@ -123,9 +124,30 @@ class GroupDrawer extends StatelessWidget {
             onTap: () => _push(context, const AccountPage()),
           ),
         ],
+        const Divider(indent: 28, endIndent: 28),
+        ListTile(
+          contentPadding: const EdgeInsets.only(left: 28, right: 16),
+          leading: const Icon(Icons.privacy_tip_outlined),
+          title: const Text('Datenschutz'),
+          onTap: () async {
+            // Statuszeile vorher holen: Das Menü ist danach geschlossen.
+            final status = app.status;
+            Navigator.pop(context);
+            final ok = await launchUrl(
+              privacyPolicy,
+              mode: LaunchMode.externalApplication,
+            );
+            if (!ok) status.show('Browser konnte nicht geöffnet werden');
+          },
+        ),
       ],
     );
   }
+
+  /// Für Google Play muss die Erklärung auch in der App verlinkt sein.
+  static final privacyPolicy = Uri.parse(
+    'https://konsum.azadoro.de/datenschutz.html',
+  );
 
   static IconData _statusIcon(SyncStatus s) => switch (s) {
     SyncStatus.local => Icons.phone_android,
