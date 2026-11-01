@@ -108,10 +108,17 @@ jobs:
       - name: Schlüssel entfernen
         if: always()
         run: rm -f "$RUNNER_TEMP/konsum.jks" app/android/key.properties
-      - uses: actions/upload-artifact@v4
+      # Je Datei ein Artefakt, ohne ZIP drumherum.
+      - uses: actions/upload-artifact@v7
         with:
-          name: android
-          path: dist/
+          path: dist/*.apk
+          archive: false
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v7
+        if: env.SIGNED
+        with:
+          path: dist/*.aab
+          archive: false
           if-no-files-found: error
 
   linux:
@@ -138,10 +145,15 @@ jobs:
         run: flutter build linux --release
       - name: Pakete (.deb, .tar.gz)
         run: deploy/linux/package.sh dist
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
-          name: linux
-          path: dist/
+          path: dist/*.deb
+          archive: false
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v7
+        with:
+          path: dist/*.tar.gz
+          archive: false
           if-no-files-found: error
 
   web:
@@ -189,10 +201,10 @@ jobs:
           version="$(sed -n 's/^version: *\([^+]*\).*/\1/p' app/pubspec.yaml)"
           mkdir -p dist
           tar -C app/build -czf "dist/konsum-$version-web.tar.gz" web
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
-          name: web
-          path: dist/
+          path: dist/*.tar.gz
+          archive: false
           if-no-files-found: error
 
   result:

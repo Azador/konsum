@@ -42,6 +42,18 @@ Installationspakete für Linux (`.deb`, `.tar.gz`):
 (cd app && flutter build linux --release) && deploy/linux/package.sh
 ```
 
+## Versionen und Branches
+
+Änderungen an `main` laufen nur über Pull Requests. Jeder PR erhöht die
+Version nach SemVer in `app/pubspec.yaml` (`version: X.Y.Z+N`): Patch für
+Fehlerbehebungen, Minor für neue Funktionen, Major für inkompatible
+Änderungen (vor 1.0: Minor). Die Build-Nummer `+N` steigt immer, sie ist der
+Android-Versionscode. Die Pakete `packages/konsum_core` und
+`packages/konsum_matrix` bekommen eine neue Version, wenn sie sich ändern.
+
+Maßgeblich ist der Stand, der mit dem PR nach `main` kommt. Einzelne Commits
+im Branch brauchen keine eigene Version.
+
 ## Automatischer Build
 
 `.github/workflows/build.yml` läuft bei jedem PR und Push auf `main`: Tests
