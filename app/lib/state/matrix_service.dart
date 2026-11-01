@@ -218,9 +218,9 @@ class MatrixService extends ChangeNotifier {
           clientName: 'Konsum',
           // Der Host muss das umgekehrte App-Schema sein (de.azadoro.konsum).
           clientUri: Uri.parse('https://konsum.azadoro.de'),
-          logoUri: null,
+          logoUri: Uri.parse('https://konsum.azadoro.de/icon.png'),
           tosUri: null,
-          policyUri: null,
+          policyUri: Uri.parse('https://konsum.azadoro.de/datenschutz.html'),
         ),
       );
       final session = await client.initOidcLoginSession(

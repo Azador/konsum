@@ -5,9 +5,9 @@ import 'package:matrix/matrix.dart';
 import 'package:sqflite/sqflite.dart' as sqflite;
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
-import 'kwallet.dart';
 import 'matrix_db.dart';
 import 'private_dir_io.dart';
+import 'secret_store.dart';
 
 Future<MatrixDatabase> open(String name) async {
   final DatabaseFactory factory;
@@ -26,8 +26,8 @@ Future<MatrixDatabase> open(String name) async {
     final cipher = await _cipher(name, path);
     if (cipher == null) {
       warning =
-          'KWallet nicht verfügbar – Matrix-Zugangsdaten '
-          'liegen unverschlüsselt auf der Platte.';
+          'Kein Schlüsselbund (KWallet, GNOME-Schlüsselbund …) verfügbar – '
+          'Matrix-Zugangsdaten liegen unverschlüsselt auf der Platte.';
     } else {
       final helper = SQfLiteEncryptionHelper(
         factory: factory,
@@ -59,19 +59,19 @@ Future<MatrixDatabase> open(String name) async {
   );
 }
 
-/// Schlüssel der Datenbank aus KWallet; beim ersten Mal wird er erzeugt.
-/// null, wenn KWallet nicht erreichbar ist und die Datenbank noch
+/// Schlüssel der Datenbank aus dem Schlüsselbund; beim ersten Mal wird er
+/// erzeugt. null, wenn kein Schlüsselbund erreichbar ist und die Datenbank noch
 /// unverschlüsselt ist (bzw. fehlt).
 Future<({String key, String? warning})?> _cipher(
   String name,
   String path,
 ) async {
   final file = File(path);
-  final wallet = await KWallet.open();
+  final wallet = await openSecretStore();
   if (wallet == null) {
     if (await file.exists() && !await _isPlainText(file)) {
       throw StateError(
-        'KWallet nicht verfügbar – ohne sie lassen sich die '
+        'Kein Schlüsselbund verfügbar – ohne ihn lassen sich die '
         'verschlüsselten Matrix-Daten nicht öffnen.',
       );
     }
@@ -88,7 +88,8 @@ Future<({String key, String? warning})?> _cipher(
       // nicht mehr zu öffnen. Beiseitelegen statt löschen.
       await file.rename('$path.unlesbar');
       warning =
-          'Schlüssel der Matrix-Daten fehlt in KWallet – bitte neu anmelden.';
+          'Schlüssel der Matrix-Daten fehlt in ${wallet.name} – '
+          'bitte neu anmelden.';
     }
     final random = Random.secure();
     final created = [

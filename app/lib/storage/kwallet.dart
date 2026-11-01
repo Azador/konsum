@@ -1,10 +1,13 @@
 import 'package:dbus/dbus.dart';
 
+import 'secret_store.dart';
+
 /// Zugriff auf die KDE-Brieftasche (KWallet) über D-Bus.
 ///
-/// Bewusst nicht über den Secret Service (libsecret): Der kann auf einem
-/// KDE-Desktop auch von gnome-keyring bedient werden.
-class KWallet {
+/// Wird vor dem Secret Service gefragt: Auf einem KDE-Desktop kann der
+/// Secret Service auch von gnome-keyring bedient werden, und bestehende
+/// Installationen haben ihren Schlüssel hier.
+class KWallet implements SecretStore {
   KWallet._(this._client, this._wallet, this._handle);
 
   static const _appId = 'Konsum';
@@ -14,6 +17,9 @@ class KWallet {
   final DBusClient _client;
   final DBusRemoteObject _wallet;
   final int _handle;
+
+  @override
+  String get name => 'KWallet';
 
   /// Öffnet die lokale Brieftasche, fragt dabei ggf. nach ihrem Passwort.
   /// null, wenn KWallet fehlt, abgeschaltet ist oder das Öffnen abgelehnt
@@ -67,7 +73,7 @@ class KWallet {
     }
   }
 
-  /// Das gespeicherte Passwort zu [key], null wenn es keines gibt.
+  @override
   Future<String?> read(String key) async {
     final entry = [const DBusString(_folder), DBusString(key)];
     final has = await _call('hasEntry', entry, 'b');
@@ -75,6 +81,7 @@ class KWallet {
     return (await _call('readPassword', entry, 's')).asString();
   }
 
+  @override
   Future<void> write(String key, String value) async {
     final result = await _call('writePassword', [
       const DBusString(_folder),
@@ -86,6 +93,7 @@ class KWallet {
     }
   }
 
+  @override
   Future<void> close() async {
     try {
       await _wallet.callMethod(_interface, 'close', [

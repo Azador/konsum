@@ -17,6 +17,7 @@ steht in [PROTOKOLL.md](PROTOKOLL.md), Dart-Projekte binden
 | `packages/konsum_matrix` | Matrix als Sync-Backend |
 | `app` | Flutter-App für Android, Linux, iOS und Web |
 | `deploy/web` | Caddy für die Web-App im lokalen Netz, siehe [README](deploy/web/README.md) |
+| `docs` | Projektseite und Datenschutzerklärung (GitHub Pages, https://konsum.azadoro.de) |
 
 ## Entwicklung
 

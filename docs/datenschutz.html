@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Datenschutz – Konsum</title>
+  <meta name="description" content="Datenschutzerklärung der App Konsum.">
+  <link rel="icon" href="favicon.png">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header>
+    <a href="./"><img src="icon.png" alt="Konsum"></a>
+    <div>
+      <h1>Datenschutz</h1>
+      <p>für die App Konsum (<code>de.azadoro.konsum</code>)</p>
+    </div>
+  </header>
+
+  <main>
+    <p class="lead">
+      Kurz gesagt: Die Entwickler von Konsum erhalten keine Daten von dir.
+      Es gibt keine Werbung, keine Statistik, keine Absturzberichte und keine
+      Google-Dienste in der App. Daten verlassen dein Gerät nur in den unten
+      beschriebenen Fällen, und nur an Dienste, die du selbst wählst oder
+      auslöst.
+    </p>
+
+    <h2>Daten auf deinem Gerät</h2>
+    <p>
+      Listen, Artikel, Kategorien, Läden, Notizen und Preise speichert die App
+      lokal auf deinem Gerät. Unter Linux sind die Matrix-Zugangsdaten
+      verschlüsselt; der Schlüssel liegt im Schlüsselbund des Desktops
+      (KWallet, GNOME-Schlüsselbund, KeePassXC o. ä.). Gibt es keinen,
+      warnt die App und speichert die Zugangsdaten unverschlüsselt.
+      In der Web-App liegen die Daten im Speicher deines Browsers. Beim
+      Deinstallieren der App bzw. Löschen der Website-Daten werden sie entfernt.
+    </p>
+
+    <h2>Abgleich über Matrix</h2>
+    <p>
+      Nur wenn du dich mit einem Matrix-Konto anmeldest, gleicht die App deine
+      Gruppen über den Matrix-Server ab, den du bei der Anmeldung angibst.
+      Die Inhalte (Listen, Artikel, gemeinsame Notizen, Preise) sind
+      Ende-zu-Ende-verschlüsselt; der Server kann sie nicht lesen. Der Server
+      sieht aber, wie bei jedem Matrix-Programm, technische Daten: deine
+      Matrix-Kennung, welche Räume es gibt und wer darin ist, Raumnamen, wann
+      Nachrichten geschickt werden, deine IP-Adresse und deine Geräte.
+    </p>
+    <p>
+      Für diese Daten ist der Betreiber des Servers verantwortlich, es gilt
+      dessen Datenschutzerklärung. Bei <code>matrix.org</code> ist das die
+      <a href="https://matrix.org/legal/privacy-notice">Datenschutzerklärung der Matrix.org Foundation</a>.
+    </p>
+    <p>
+      Ausnahme: <strong>Private Notizen</strong> sehen die anderen Mitglieder
+      der Gruppe nicht. Sie liegen in deinen persönlichen Kontodaten auf dem
+      Server und sind dort <strong>nicht</strong> Ende-zu-Ende-verschlüsselt;
+      der Betreiber des Servers könnte sie lesen.
+    </p>
+
+    <h3>Konto anlegen und löschen</h3>
+    <p>
+      Legst du in der App ein Matrix-Konto an, geschieht das auf der Seite
+      deines Matrix-Servers; die App selbst sieht dein Passwort dabei nicht.
+      Gelöscht wird das Konto ebenfalls beim Server, meist in dessen
+      Kontoverwaltung (bei <code>matrix.org</code>:
+      <a href="https://account.matrix.org">account.matrix.org</a>). Abmelden
+      in der App entfernt die Zugangsdaten vom Gerät.
+    </p>
+
+    <h2>Produktdaten von Open Food Facts</h2>
+    <p>
+      Scannst du einen Barcode, den die App noch nicht kennt, oder rufst du
+      Produktdaten zu einem Artikel ab, fragt die App bei
+      <a href="https://world.openfoodfacts.org">Open Food Facts</a> nach. Dabei
+      werden der Barcode und deine IP-Adresse übertragen, sonst nichts. Auch
+      Produktbilder werden von dort geladen. Es gilt die
+      <a href="https://world.openfoodfacts.org/privacy">Datenschutzerklärung von Open Food Facts</a>.
+      Die Antwort speichert die App lokal, damit sie nicht erneut fragen muss.
+    </p>
+
+    <h2>Kamera</h2>
+    <p>
+      Die Kamera wird nur zum Scannen von Barcodes benutzt, und nur, während
+      der Scanner offen ist. Die Bilder werden auf dem Gerät ausgewertet und
+      weder gespeichert noch übertragen.
+    </p>
+
+    <h2>Berechtigungen (Android)</h2>
+    <ul>
+      <li><strong>Internet, Netzwerkstatus:</strong> Abgleich über Matrix und Abfrage bei Open Food Facts</li>
+      <li><strong>Kamera:</strong> Barcode-Scanner</li>
+    </ul>
+
+    <h2>Diese Website</h2>
+    <p>
+      Diese Seite wird von GitHub Pages ausgeliefert. GitHub verarbeitet dabei
+      deine IP-Adresse, um die Seite auszuliefern und vor Angriffen zu
+      schützen; siehe
+      <a href="https://docs.github.com/de/site-policy/privacy-policies/github-general-privacy-statement">Datenschutzerklärung von GitHub</a>.
+      Die Seite setzt keine Cookies und lädt keine Inhalte von anderen
+      Anbietern.
+    </p>
+
+    <h2>Fragen</h2>
+    <p>
+      Da die Entwickler keine Daten von dir haben, wende dich für Auskunft
+      oder Löschung an den Betreiber deines Matrix-Servers bzw. an Open Food
+      Facts. Fragen zur App beantworten wir gern über
+      <a href="https://github.com/Azador/konsum/issues">GitHub</a>.
+    </p>
+
+    <p><em>Stand: 1. November 2026</em></p>
+  </main>
+
+  <footer>
+    <a href="./">Konsum</a> ·
+    <a href="https://github.com/Azador/konsum">Quelltext</a>
+  </footer>
+</body>
+</html>

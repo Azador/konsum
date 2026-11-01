@@ -9,5 +9,6 @@ import 'matrix_db_io.dart'
 typedef MatrixDatabase = ({DatabaseApi database, String? warning});
 
 /// Datenbank des Matrix-SDK: SQLite auf Android/Linux/iOS, IndexedDB im Web.
-/// Auf Linux mit SQLCipher verschlüsselt, der Schlüssel liegt in KWallet.
+/// Auf Linux mit SQLCipher verschlüsselt, der Schlüssel liegt in KWallet oder
+/// im Secret Service (GNOME-Schlüsselbund, KeePassXC, …).
 Future<MatrixDatabase> openMatrixDatabase(String name) => impl.open(name);

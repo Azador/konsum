@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Konsum – gemeinsame Einkaufsliste</title>
+  <meta name="description" content="Gemeinsame, offline-fähige Einkaufsliste für Haushalte und Vereine. Freie Software, Abgleich über Matrix, Ende-zu-Ende-verschlüsselt.">
+  <link rel="icon" href="favicon.png">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header>
+    <img src="icon.png" alt="">
+    <div>
+      <h1>Konsum</h1>
+      <p>Gemeinsame Einkaufsliste für Haushalte und Vereine</p>
+    </div>
+  </header>
+
+  <main>
+    <p class="lead">
+      Konsum ist eine Einkaufsliste, die mehrere Leute gemeinsam benutzen.
+      Sie funktioniert ohne Netz und gleicht sich ab, sobald wieder Verbindung
+      besteht. Den Abgleich übernimmt ein Matrix-Server deiner Wahl,
+      Ende-zu-Ende-verschlüsselt. Konsum ist freie Software, ohne Werbung und
+      ohne Tracking.
+    </p>
+
+    <h2>Funktionen</h2>
+    <div class="grid">
+      <div class="card">
+        <h3>Gruppen und Listen</h3>
+        <p>Mehrere Gruppen (Familie, Verein, WG), je Gruppe beliebig viele Listen.</p>
+      </div>
+      <div class="card">
+        <h3>Offline zuerst</h3>
+        <p>Alles klappt auch im Funkloch. Änderungen werden später abgeglichen.</p>
+      </div>
+      <div class="card">
+        <h3>Sortiert nach Laden</h3>
+        <p>Kategorien und Läden mit eigener Reihenfolge – die Liste folgt deinem Weg durch den Markt.</p>
+      </div>
+      <div class="card">
+        <h3>Barcode-Scanner</h3>
+        <p>Artikel per Kamera hinzufügen und abhaken. Produktdaten auf Wunsch von Open Food Facts.</p>
+      </div>
+      <div class="card">
+        <h3>Notizen und Preise</h3>
+        <p>Gemeinsame und private Notizen je Eintrag, Preise mit Historie und geschätzter Summe.</p>
+      </div>
+      <div class="card">
+        <h3>Ende-zu-Ende-verschlüsselt</h3>
+        <p>Listen und gemeinsame Notizen kann der Server nicht lesen. Private Notizen sehen die anderen nicht.</p>
+      </div>
+    </div>
+
+    <h2>Installieren</h2>
+    <h3>Android</h3>
+    <p class="soon">Bald bei F-Droid und Google Play.</p>
+    <h3>Linux</h3>
+    <p>
+      Aus dem Quelltext bauen, siehe
+      <a href="https://github.com/Azador/konsum#readme">Anleitung</a>.
+    </p>
+    <h3>iPhone, Windows, macOS</h3>
+    <p>
+      Als Web-App im Browser. Sie ist für den Betrieb im eigenen Netz gedacht;
+      wie man sie einrichtet, steht in der
+      <a href="https://github.com/Azador/konsum/blob/main/deploy/web/README.md">Anleitung zur Web-App</a>.
+    </p>
+
+    <h2>Wie der Abgleich funktioniert</h2>
+    <p>
+      Konsum betreibt keinen eigenen Server. Jede Gruppe ist ein
+      verschlüsselter Raum auf einem <a href="https://matrix.org">Matrix</a>-Server –
+      zum Beispiel <code>matrix.org</code> oder der Server deines Vereins.
+      Du meldest dich mit deinem Matrix-Konto an (oder legst in der App eines
+      an) und lädst die anderen in die Gruppe ein. Ohne Anmeldung bleibt alles
+      nur auf deinem Gerät.
+    </p>
+    <p>
+      Das Protokoll ist offen beschrieben, eigene Programme können geteilte
+      Listen mitbenutzen:
+      <a href="https://github.com/Azador/konsum/blob/main/PROTOKOLL.md">PROTOKOLL.md</a>.
+    </p>
+
+    <h2>Datenschutz</h2>
+    <p>
+      Konsum sammelt keine Daten. Was wohin geht, steht in der
+      <a href="datenschutz.html">Datenschutzerklärung</a>.
+    </p>
+
+    <h2>Mitmachen</h2>
+    <p>
+      Quelltext, Fehlerberichte und Wünsche:
+      <a href="https://github.com/Azador/konsum">github.com/Azador/konsum</a>
+    </p>
+    <p><a class="button" href="https://github.com/Azador/konsum">Zum Quelltext</a></p>
+  </main>
+
+  <footer>
+    Konsum ist freie Software unter der
+    <a href="https://www.gnu.org/licenses/gpl-3.0.html">GPL-3.0</a> ·
+    <a href="datenschutz.html">Datenschutz</a>
+  </footer>
+</body>
+</html>
