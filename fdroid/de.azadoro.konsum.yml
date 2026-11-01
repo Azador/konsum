@@ -1,0 +1,47 @@
+Categories:
+  - Shopping List
+License: GPL-3.0-only
+AuthorName: Azadoro
+AuthorEmail: konsum@azadoro.de
+WebSite: https://konsum.azadoro.de
+SourceCode: https://github.com/Azador/konsum
+IssueTracker: https://github.com/Azador/konsum/issues
+Changelog: https://github.com/Azador/konsum/releases
+
+AutoName: Konsum
+
+RepoType: git
+Repo: https://github.com/Azador/konsum.git
+
+Builds:
+  - versionName: 0.6.5
+    versionCode: 12
+    commit: v0.6.5
+    subdir: app
+    output: build/app/outputs/flutter-apk/app-release.apk
+    srclibs:
+      - flutter@3.47.8
+    sudo:
+      - apt-get update
+      - apt-get install -y curl
+      - curl -Lo /tmp/rustup-init https://static.rust-lang.org/rustup/dist/x86_64-unknown-linux-gnu/rustup-init
+      - chmod +x /tmp/rustup-init
+      - /tmp/rustup-init -y --profile minimal --default-toolchain stable
+      - ~/.cargo/bin/rustup target add armv7-linux-androideabi aarch64-linux-android
+        x86_64-linux-android
+    prebuild:
+      - export PUB_CACHE=$(pwd)/.pub-cache
+      - $$flutter$$/bin/flutter config --no-analytics
+      - $$flutter$$/bin/flutter pub get
+    scandelete:
+      - app/.pub-cache
+    build:
+      - export PUB_CACHE=$(pwd)/.pub-cache PATH=$HOME/.cargo/bin:$PATH
+      - $$flutter$$/bin/flutter build apk --release
+    ndk: r28c
+
+AutoUpdateMode: Version
+UpdateCheckMode: Tags ^v[0-9.]+$
+UpdateCheckData: app/pubspec.yaml|version:\s.+\+(\d+)|.|version:\s(.+)\+
+CurrentVersion: 0.6.5
+CurrentVersionCode: 12

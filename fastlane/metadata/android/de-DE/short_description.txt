@@ -1,0 +1,1 @@
+Gemeinsame Einkaufsliste: offline nutzbar, über Matrix geteilt, verschlüsselt

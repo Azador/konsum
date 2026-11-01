@@ -66,6 +66,12 @@ class _AccountPageState extends State<AccountPage> {
               label: const Text('Abmelden'),
               onPressed: matrix.busy ? null : matrix.logout,
             ),
+            const SizedBox(height: 8),
+            TextButton.icon(
+              icon: const Icon(Icons.person_remove_outlined),
+              label: const Text('Konto löschen …'),
+              onPressed: matrix.busy ? null : () => _deleteAccount(matrix),
+            ),
           ] else if (login == null)
             ..._serverStep(matrix)
           else
@@ -145,6 +151,34 @@ class _AccountPageState extends State<AccountPage> {
         ),
       ],
     };
+  }
+
+  Future<void> _deleteAccount(MatrixService matrix) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Konto löschen'),
+        content: Text(
+          'Dein Matrix-Konto ${matrix.userId ?? ''} gehört zu deinem '
+          'Matrix-Server, nicht zu Konsum. Gelöscht wird es auf der Seite des '
+          'Servers, die sich jetzt im Browser öffnet.\n\n'
+          'Damit verlierst du den Zugang zu allen geteilten Gruppen, auch in '
+          'anderen Matrix-Programmen. Die Daten auf diesem Gerät bleiben, bis '
+          'du die App deinstallierst.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Abbrechen'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Zur Seite des Servers'),
+          ),
+        ],
+      ),
+    );
+    if (ok == true) await matrix.openAccountDeletion();
   }
 
   Future<void> _recoveryKey(MatrixService matrix) async {

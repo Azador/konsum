@@ -1,8 +1,6 @@
 # Dart / Flutter
 .dart_tool/
 build/
-pubspec.lock
-!app/pubspec.lock
 .flutter-plugins
 .flutter-plugins-dependencies
 
