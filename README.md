@@ -62,9 +62,17 @@ anhand der Tags, Google Play bekommt das App-Bundle desselben Stands.
 ## Automatischer Build
 
 `.github/workflows/build.yml` läuft bei jedem PR und Push auf `main`: Tests
-und Analyse, danach Android (APK, mit Signier-Secrets auch AAB), Linux
-(`.deb`, `.tar.gz`) und Web (`.tar.gz`). Die Pakete hängen als Artefakte am
-Lauf. Der Job „Ergebnis“ ist nur grün, wenn alles geklappt hat.
+und Analyse, danach Android (APK), Linux (`.deb`, `.tar.gz`) und Web
+(`.tar.gz`). Die Pakete hängen als Artefakte am Lauf. Der Job „Ergebnis“ ist
+nur grün, wenn alles geklappt hat.
+
+`.github/workflows/release.yml` baut zu jedem Tag `vX.Y.Z` das App-Bundle für
+Google Play, signiert mit dem Upload-Schlüssel (Secrets
+`PLAY_UPLOAD_KEYSTORE_BASE64` und `PLAY_UPLOAD_KEYSTORE_PASSWORD` im
+Environment `release`). Er bricht ab, wenn der Tag nicht zur Version in
+`app/pubspec.yaml` passt. Das Bundle hängt als Artefakt am Lauf und wird von
+Hand in der Play Console hochgeladen. Von Hand gestartet baut er einen
+vorhandenen Tag nach.
 
 ## Veröffentlichung
 
