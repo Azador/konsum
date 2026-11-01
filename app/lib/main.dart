@@ -49,9 +49,10 @@ class KonsumApp extends StatelessWidget {
         navigatorKey: _navigator,
         builder: (context, child) =>
             VerificationListener(navigator: _navigator, child: child!),
-        theme: ThemeData(colorSchemeSeed: Colors.green),
+        theme: ThemeData(colorSchemeSeed: Colors.green, fontFamily: 'Roboto'),
         darkTheme: ThemeData(
           colorSchemeSeed: Colors.green,
+          fontFamily: 'Roboto',
           brightness: Brightness.dark,
         ),
         locale: const Locale('de'),

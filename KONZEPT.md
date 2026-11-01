@@ -189,6 +189,11 @@ Quelle nennen.
   zxing-wasm, selbst ausgeliefert statt vom CDN. Galerie, Mikrofon- und
   Speicherberechtigung des Kamera-Plugins sind abgeschaltet (2026-11-01)
 
+- Keine Schriften von Google Fonts (Datenschutz): Roboto liegt in der App
+  (`app/assets/fonts`, SIL OFL), Ersatzschriften für Emojis und Symbole
+  liefert die Web-App selbst aus (`deploy/web/fetch-fonts.sh`). Andere
+  Schriftsysteme zeigt die Web-App als Kästchen (2026-11-01)
+
 - Namensraum der Matrix-Ereignisse `de.azadoro.konsum`. Räume mit dem alten
   Namensraum `de.azador.konsum` werden nicht mehr erkannt; die Daten wurden
   von Hand in neue Gruppen übertragen (2026-11-01)

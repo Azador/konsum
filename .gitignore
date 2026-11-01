@@ -9,6 +9,7 @@ pubspec.lock
 # vodozemac als WASM, wird von deploy/web/build-vodozemac.sh erzeugt
 app/web/pkg/
 app/web/zxing/
+app/web/fonts/fallback/
 
 # IDE
 .idea/

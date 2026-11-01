@@ -8,4 +8,8 @@ if ('serviceWorker' in navigator) {
     console.warn('Service Worker nicht registriert:', e));
 }
 
-_flutter.loader.load();
+// Ersatzschriften (Emojis, Symbole) vom eigenen Server statt von Google
+// Fonts, siehe deploy/web/fetch-fonts.sh.
+_flutter.loader.load({
+  config: { fontFallbackBaseUrl: 'fonts/fallback/' },
+});

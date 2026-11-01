@@ -1,7 +1,7 @@
 name: konsum
 description: "Gemeinsame Einkaufsliste"
 publish_to: 'none'
-version: 0.6.0+7
+version: 0.6.1+8
 
 environment:
   sdk: ^3.13.7
@@ -36,6 +36,16 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+  # Roboto selbst mitgeliefert (SIL OFL 1.1, assets/fonts/OFL.txt). Flutter
+  # Web lädt Roboto sonst von Google Fonts.
+  fonts:
+    - family: Roboto
+      fonts:
+        - asset: assets/fonts/Roboto-Regular.ttf
+        - asset: assets/fonts/Roboto-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/Roboto-Bold.ttf
+          weight: 700
 
 # SQLCipher statt SQLite für die FFI-Datenbank (Linux): Die Matrix-Daten
 # werden verschlüsselt, der Schlüssel liegt in KWallet. Android nutzt die

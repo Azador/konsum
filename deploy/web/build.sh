@@ -6,6 +6,7 @@ set -eu
 here="$(cd "$(dirname "$0")" && pwd)"
 "$here/build-vodozemac.sh"
 "$here/fetch-zxing.sh"
+"$here/fetch-fonts.sh"
 cd "$here/../../app"
 flutter build web --release --no-web-resources-cdn --no-wasm-dry-run
 echo "Fertig: app/build/web. Starten mit: cd deploy/web && docker compose up -d"
