@@ -79,16 +79,23 @@ class FakeTransport implements RoomTransport {
 
 /// Ein Gerät mit Gruppe und Sync, wie die App es zusammensteckt.
 class Device {
-  Device(FakeRoom room, String user, String device, {int seed = 0})
-    : this._(room.connect(user, device), device, seed);
+  Device(
+    FakeRoom room,
+    String user,
+    String device, {
+    int seed = 0,
+    Duration retryDelay = const Duration(minutes: 1),
+  }) : this._(room.connect(user, device), device, seed, retryDelay);
 
-  Device._(this.transport, String device, int seed)
+  Device._(this.transport, String device, int seed, Duration retryDelay)
     : group = Group(HlcClock(device)),
       private = PrivateData(HlcClock(device)),
       sync = MatrixGroupSync(
         transport,
         random: math.Random(seed),
         maxReplyDelay: const Duration(milliseconds: 50),
+        retryDelay: retryDelay,
+        maxRetryDelay: retryDelay * 2,
       ) {
     sync.incoming.listen(group.receive);
     sync.incomingPrivate.listen(private.receive);
@@ -230,5 +237,27 @@ void main() {
     room.online = true;
     expect(await outbox.flush(alice.sync.send), isTrue);
     expect(bob.group.lists, hasLength(1));
+  });
+
+  test('Unbeantwortete Bitte wird wiederholt, bis Daten da sind', () async {
+    final room = FakeRoom();
+    const retry = Duration(milliseconds: 300);
+    final phone = Device(room, '@a:x', 'P', retryDelay: retry);
+    await settle();
+    int requests() =>
+        room.sent.where((e) => e.type == KonsumEvents.snapshotRequest).length;
+    expect(requests(), 1); // niemand online, der antworten könnte
+
+    // Ein Gerät mit Daten kommt später online.
+    final laptop = Device(room, '@a:x', 'L', seed: 1, retryDelay: retry);
+    laptop.group.createList('Einkauf');
+    expect(phone.group.lists, isEmpty);
+    await Future<void>.delayed(const Duration(milliseconds: 400));
+    expect(phone.group.lists.map((l) => l.name), ['Einkauf']);
+
+    // Danach keine weiteren Bitten mehr.
+    final after = requests();
+    await Future<void>.delayed(const Duration(milliseconds: 1000));
+    expect(requests(), after);
   });
 }

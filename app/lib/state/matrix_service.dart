@@ -133,6 +133,7 @@ class MatrixService extends ChangeNotifier {
       _client = client;
       await client.init(waitForFirstSync: false);
       _syncSub = client.onSync.stream.listen((_) {
+        _adoptRoomNames();
         notifyListeners();
         unawaited(_adoptJoinedRooms());
       });
@@ -389,6 +390,31 @@ class MatrixService extends ChangeNotifier {
       );
     }
   }
+
+  /// Übernimmt geänderte Raumnamen (von einem anderen Gerät, Mitglied oder
+  /// Programm wie Element) als Gruppennamen.
+  void _adoptRoomNames() {
+    for (final g in _app.groups) {
+      if (!isShared(g)) continue;
+      final name = _client?.getRoomById(_roomId(g))?.name ?? '';
+      if (name.isNotEmpty && name != g.info.name) _app.renameGroup(g, name);
+    }
+  }
+
+  /// Ob die Gruppe über einen Matrix-Raum geteilt ist.
+  bool isShared(GroupSession session) =>
+      session.info.backend?['type'] == _backendType &&
+      session.info.backend?['roomId'] is String;
+
+  /// Benennt eine geteilte Gruppe um: Der Raumname ist der Gruppenname für
+  /// alle Mitglieder und Geräte. Lokal erst, wenn der Server zugestimmt hat,
+  /// sonst holte [_adoptRoomNames] den alten Namen zurück.
+  Future<bool> rename(GroupSession session, String name) => _run(() async {
+    final groups = _groups;
+    if (groups == null) throw StateError('Nicht bei Matrix angemeldet');
+    await groups.rename(_roomId(session), name);
+    _app.renameGroup(session, name);
+  });
 
   /// Teilt eine bisher lokale Gruppe: legt einen Raum an und verschickt den
   /// vollständigen Stand.

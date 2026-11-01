@@ -35,7 +35,15 @@ class GroupPage extends StatelessWidget {
                 title: 'Gruppe umbenennen',
                 initial: session.info.name,
               );
-              if (name != null) app.renameGroup(session, name);
+              if (name == null || !context.mounted) return;
+              final matrix = MatrixScope.maybeOf(context);
+              if (matrix == null || !matrix.isShared(session)) {
+                app.renameGroup(session, name);
+              } else if (!await matrix.rename(session, name)) {
+                app.status.show(
+                  'Umbenennen fehlgeschlagen: ${matrix.error ?? 'offline?'}',
+                );
+              }
             },
           ),
           ListTile(

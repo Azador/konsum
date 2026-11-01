@@ -15,6 +15,9 @@ import 'transport.dart';
 ///   ihn unaufgefordert. Damit nicht alle gleichzeitig antworten, wartet
 ///   jedes Gerät eine zufällige Zeit und antwortet nicht, wenn inzwischen
 ///   ein anderes geantwortet hat.
+/// - Bleibt die Bitte unbeantwortet (kein anderes Gerät online), fragt ein
+///   Gerät ohne Daten in wachsenden Abständen erneut ([retryDelay], bis
+///   [maxRetryDelay]), bis Daten kommen.
 /// - Hat der Server nach langer Offline-Zeit nicht alle Ereignisse geliefert
 ///   (Lücke), fragt das Gerät ebenfalls nach dem vollständigen Stand.
 /// - Private Daten liegen in der Room Account Data des Benutzers.
@@ -23,6 +26,8 @@ class MatrixGroupSync implements GroupSync {
     this._transport, {
     math.Random? random,
     this.maxReplyDelay = const Duration(seconds: 3),
+    this.retryDelay = const Duration(seconds: 30),
+    this.maxRetryDelay = const Duration(minutes: 30),
   }) : _random = random ?? math.Random() {
     _subscriptions
       ..add(_transport.events.listen(_onEvent))
@@ -39,11 +44,14 @@ class MatrixGroupSync implements GroupSync {
   final RoomTransport _transport;
   final math.Random _random;
   final Duration maxReplyDelay;
+  final Duration retryDelay;
+  final Duration maxRetryDelay;
   final _subscriptions = <StreamSubscription<Object?>>[];
   final _incoming = StreamController<List<Change>>.broadcast();
   final _incomingPrivate = StreamController<List<Change>>.broadcast();
   List<Change> Function() _snapshot = () => const [];
   Timer? _replyTimer;
+  Timer? _retryTimer;
   bool _started = false;
 
   @override
@@ -66,7 +74,22 @@ class MatrixGroupSync implements GroupSync {
   Future<void> _start() async {
     final private = _transport.accountData(KonsumEvents.private);
     if (private != null) _incomingPrivate.add(decodeChanges(private));
-    if (_snapshot().isEmpty) await _requestSnapshot();
+    if (_snapshot().isEmpty) {
+      await _requestSnapshot();
+      _scheduleRetry(retryDelay);
+    }
+  }
+
+  /// Fragt erneut, solange der lokale Stand leer ist.
+  void _scheduleRetry(Duration delay) {
+    _retryTimer?.cancel();
+    _retryTimer = Timer(delay, () async {
+      _retryTimer = null;
+      if (_snapshot().isNotEmpty) return;
+      await _requestSnapshot();
+      final next = delay * 2;
+      _scheduleRetry(next > maxRetryDelay ? maxRetryDelay : next);
+    });
   }
 
   Future<void> _requestSnapshot() async {
@@ -160,6 +183,7 @@ class MatrixGroupSync implements GroupSync {
   @override
   Future<void> close() async {
     _cancelReply();
+    _retryTimer?.cancel();
     for (final s in _subscriptions) {
       await s.cancel();
     }
