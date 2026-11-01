@@ -198,6 +198,17 @@ Quelle nennen.
   Namensraum `de.azador.konsum` werden nicht mehr erkannt; die Daten wurden
   von Hand in neue Gruppen übertragen (2026-11-01)
 
+- Keine fertigen Binärdateien im Build (F-Droid): SQLCipher für Linux kommt
+  aus dem System statt vorkompiliert von GitHub. Die Linux-App ist dagegen
+  gelinkt, die Dart-Seite sucht die Funktionen im Prozess; so hängt das .deb
+  nur von `libsqlcipher1` ab. Die Android-App enthält kein SQLite-FFI mehr. Datenbankschlüssel unter
+  Linux in KWallet, sonst im Secret Service (2026-11-01)
+
+- Android als eine APK für alle Prozessoren (Versionscode wie bei Google
+  Play), damit Änderungshinweise und GitHub-Release für beide Stores gleich
+  sind. „Konto löschen“ öffnet die Kontoverwaltung des Matrix-Servers
+  (Pflicht bei Google Play, weil die App Konten anlegen kann) (2026-11-01)
+
 ## Offene Punkte
 
 - Web-App: Anmeldung im Browser (OIDC) braucht noch den Rückweg auf die

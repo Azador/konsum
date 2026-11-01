@@ -1,7 +1,7 @@
 name: konsum
 description: "Gemeinsame Einkaufsliste"
 publish_to: 'none'
-version: 0.6.4+11
+version: 0.6.5+12
 
 environment:
   sdk: ^3.13.7
@@ -47,10 +47,14 @@ flutter:
         - asset: assets/fonts/Roboto-Bold.ttf
           weight: 700
 
-# SQLCipher statt SQLite für die FFI-Datenbank (Linux): Die Matrix-Daten
-# werden verschlüsselt, der Schlüssel liegt in KWallet. Android nutzt die
-# SQLite des Systems über sqflite und ist davon nicht betroffen.
+# Die FFI-Datenbank (nur Linux) nimmt SQLCipher aus dem System: Die
+# Linux-App ist gegen libsqlcipher gelinkt (linux/runner/CMakeLists.txt,
+# Debian/Ubuntu: libsqlcipher-dev), die Dart-Seite sucht die sqlite3-Funktionen
+# im Prozess. Die Matrix-Daten werden verschlüsselt, der Schlüssel liegt im
+# Schlüsselbund. Bewusst nicht `source: sqlcipher`: Das lädt fertige
+# Bibliotheken von GitHub und packt sie auch in die Android-App, die sie nicht
+# braucht (sie nutzt sqflite). Fertige Binärdateien im Build lehnt F-Droid ab.
 hooks:
   user_defines:
     sqlite3:
-      source: sqlcipher
+      source: process

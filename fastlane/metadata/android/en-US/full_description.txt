@@ -1,0 +1,21 @@
+Konsum is a shopping list that several people use together – your family, flatmates or club. It works offline and syncs as soon as you are connected again.
+
+The app is currently available in German only.
+
+Features
+• Several groups, each with as many lists as you like
+• Add items quickly: suggestions by frequency, quantity and unit
+• Categories and shops with their own order – the list follows your way through the store
+• Barcode scanner to add and check off items
+• Product data and nutrition facts from Open Food Facts on request
+• Shared and private notes per entry
+• Prices with history and an estimated total for the list
+• Works completely offline
+
+Sharing via Matrix
+Konsum runs no server of its own. Each group is a room on a Matrix server of your choice, for example matrix.org or your club's server. Lists and shared notes are end-to-end encrypted. Without signing in, everything stays on your device.
+
+Privacy
+No ads, no tracking, no Google services. The developers receive no data from you.
+
+Konsum is free software (GPL-3.0). Source code, bug reports and wishes: https://github.com/Azador/konsum

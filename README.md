@@ -31,6 +31,31 @@ cd app && flutter run -d chrome          # Web-App starten
 
 Lokale Daten der Linux-App: `~/.local/share/de.azadoro.konsum/data/`
 
+Die Linux-App wird gegen SQLCipher aus dem System gebaut
+(Debian/Ubuntu: `sudo apt install libsqlcipher-dev`, Fedora: `sqlcipher-devel`,
+Arch: `sqlcipher`) und braucht einen Schlüsselbund (KWallet,
+GNOME-Schlüsselbund, KeePassXC …) für den Datenbankschlüssel.
+
+Installationspakete für Linux (`.deb`, `.tar.gz`):
+
+```bash
+(cd app && flutter build linux --release) && deploy/linux/package.sh
+```
+
+## Automatischer Build
+
+`.github/workflows/build.yml` läuft bei jedem PR und Push auf `main`: Tests
+und Analyse, danach Android (APK, mit Signier-Secrets auch AAB), Linux
+(`.deb`, `.tar.gz`) und Web (`.tar.gz`). Die Pakete hängen als Artefakte am
+Lauf. Der Job „Ergebnis“ ist nur grün, wenn alles geklappt hat.
+
+## Veröffentlichung
+
+| Verzeichnis | Inhalt |
+|---|---|
+| `fastlane/metadata/android` | Store-Texte, Icon, Änderungshinweise (F-Droid liest sie direkt, für Google Play zum Kopieren) |
+| `fdroid/de.azadoro.konsum.yml` | Bauanleitung für F-Droid (Vorlage für fdroiddata) |
+
 ## Lizenz
 
 GPL-3.0, siehe [LICENSE](LICENSE).

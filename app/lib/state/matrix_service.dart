@@ -271,6 +271,44 @@ class MatrixService extends ChangeNotifier {
     await _client?.logout();
   });
 
+  /// Öffnet im Browser die Seite des Servers, auf der man das Konto löscht.
+  /// Server ohne Kontoverwaltung (ältere ohne Anmeldung über den Browser):
+  /// die Erklärung auf der Projektseite.
+  Future<bool> openAccountDeletion() => _run(() async {
+    final client = _client;
+    if (client == null) throw StateError('Matrix nicht verfügbar');
+    Uri target = accountDeletionHelp;
+    try {
+      // Roh abgefragt: Das SDK macht aus unbekannten Aktionen „profile“.
+      final metadata = await client.request(
+        RequestType.GET,
+        '/client/v1/auth_metadata',
+      );
+      final manage = metadata['account_management_uri'];
+      if (manage is String) {
+        const action = 'org.matrix.account_deactivate';
+        final actions = metadata['account_management_actions_supported'];
+        final uri = Uri.parse(manage);
+        target = actions is List && actions.contains(action)
+            ? uri.replace(
+                queryParameters: {...uri.queryParameters, 'action': action},
+              )
+            : uri;
+      }
+    } catch (_) {
+      // Server ohne Anmeldung über den Browser: Erklärung zeigen.
+    }
+    final opened = await launchUrl(
+      target,
+      mode: LaunchMode.externalApplication,
+    );
+    if (!opened) throw StateError('Browser konnte nicht geöffnet werden');
+  });
+
+  static final accountDeletionHelp = Uri.parse(
+    'https://konsum.azadoro.de/datenschutz.html#konto-loeschen',
+  );
+
   /// Bittet die anderen Geräte des Kontos, dieses Gerät zu bestätigen
   /// (Emojis vergleichen).
   Future<bool> verifyWithOtherDevice() => _run(() async {

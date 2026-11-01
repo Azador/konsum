@@ -1,0 +1,13 @@
+[Desktop Entry]
+Type=Application
+Name=Konsum
+GenericName=Einkaufsliste
+GenericName[en]=Shopping list
+Comment=Gemeinsame Einkaufsliste, abgeglichen über Matrix
+Comment[en]=Shared shopping list, synced via Matrix
+Exec=konsum
+Icon=de.azadoro.konsum
+Terminal=false
+Categories=Office;Utility;
+Keywords=Einkauf;Liste;Shopping;List;Matrix;
+StartupNotify=true

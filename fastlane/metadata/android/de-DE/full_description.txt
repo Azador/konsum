@@ -1,0 +1,19 @@
+Konsum ist eine Einkaufsliste, die mehrere Leute gemeinsam benutzen – die Familie, die WG oder der Verein. Sie funktioniert ohne Netz und gleicht sich ab, sobald wieder Verbindung besteht.
+
+Funktionen
+• Mehrere Gruppen, je Gruppe beliebig viele Listen
+• Artikel schnell hinzufügen: Vorschläge nach Häufigkeit, Menge und Einheit
+• Kategorien und Läden mit eigener Reihenfolge – die Liste folgt deinem Weg durch den Markt
+• Barcode-Scanner zum Hinzufügen und Abhaken
+• Produktdaten und Nährwerte auf Wunsch von Open Food Facts
+• Gemeinsame und private Notizen je Eintrag
+• Preise mit Historie und geschätzter Summe der Liste
+• Funktioniert vollständig offline
+
+Teilen über Matrix
+Konsum betreibt keinen eigenen Server. Jede Gruppe ist ein Raum auf einem Matrix-Server deiner Wahl, zum Beispiel matrix.org oder der Server deines Vereins. Listen und gemeinsame Notizen sind Ende-zu-Ende-verschlüsselt. Ohne Anmeldung bleibt alles nur auf deinem Gerät.
+
+Datenschutz
+Keine Werbung, kein Tracking, keine Google-Dienste. Die Entwickler erhalten keine Daten von dir.
+
+Konsum ist freie Software (GPL-3.0). Quelltext, Fehlerberichte und Wünsche: https://github.com/Azador/konsum
