@@ -23,50 +23,6 @@ abstract final class KonsumEvents {
   static const maxChunkBytes = 24 * 1024;
 }
 
-/// Die Namen der Ereignistypen, die in einem Raum gelten. Sie hängen am
-/// Raumtyp: Ein Raum verwendet durchgehend die Namen, unter denen er angelegt
-/// wurde, damit alle Geräte darin dieselben Ereignisse sehen.
-final class KonsumEventNames {
-  const KonsumEventNames({
-    required this.roomType,
-    required this.changes,
-    required this.snapshotRequest,
-    required this.private,
-  });
-
-  final String roomType;
-  final String changes;
-  final String snapshotRequest;
-  final String private;
-
-  /// Für neue Räume.
-  static const current = KonsumEventNames(
-    roomType: KonsumEvents.roomType,
-    changes: KonsumEvents.changes,
-    snapshotRequest: KonsumEvents.snapshotRequest,
-    private: KonsumEvents.private,
-  );
-
-  /// Bis App-Version 0.3 (Namensraum `de.azador.konsum`). Solche Räume werden
-  /// weiter erkannt und mit diesen Namen gelesen und beschrieben.
-  static const legacy = KonsumEventNames(
-    roomType: 'de.azador.konsum.group',
-    changes: 'de.azador.konsum.changes',
-    snapshotRequest: 'de.azador.konsum.snapshot_request',
-    private: 'de.azador.konsum.private',
-  );
-
-  static const all = [current, legacy];
-
-  /// Die Namen zum Raumtyp aus `m.room.create`, null bei fremden Räumen.
-  static KonsumEventNames? forRoomType(Object? type) {
-    for (final names in all) {
-      if (names.roomType == type) return names;
-    }
-    return null;
-  }
-}
-
 /// Teilt Änderungen in Ereignis-Inhalte auf, die unter der Größengrenze bleiben.
 List<Map<String, Object?>> encodeChanges(
   List<Change> changes, {

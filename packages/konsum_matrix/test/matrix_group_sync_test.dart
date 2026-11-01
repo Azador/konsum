@@ -79,22 +79,16 @@ class FakeTransport implements RoomTransport {
 
 /// Ein Gerät mit Gruppe und Sync, wie die App es zusammensteckt.
 class Device {
-  Device(
-    FakeRoom room,
-    String user,
-    String device, {
-    int seed = 0,
-    KonsumEventNames names = KonsumEventNames.current,
-  }) : this._(room.connect(user, device), device, seed, names);
+  Device(FakeRoom room, String user, String device, {int seed = 0})
+    : this._(room.connect(user, device), device, seed);
 
-  Device._(this.transport, String device, int seed, KonsumEventNames names)
+  Device._(this.transport, String device, int seed)
     : group = Group(HlcClock(device)),
       private = PrivateData(HlcClock(device)),
       sync = MatrixGroupSync(
         transport,
         random: math.Random(seed),
         maxReplyDelay: const Duration(milliseconds: 50),
-        names: names,
       ) {
     sync.incoming.listen(group.receive);
     sync.incomingPrivate.listen(private.receive);
@@ -236,22 +230,5 @@ void main() {
     room.online = true;
     expect(await outbox.flush(alice.sync.send), isTrue);
     expect(bob.group.lists, hasLength(1));
-  });
-
-  test('Alter Raum: alte Ereignistypen senden und lesen', () async {
-    final room = FakeRoom();
-    const old = KonsumEventNames.legacy;
-    final a = Device(room, '@a:x', 'A', names: old);
-    final b = Device(room, '@b:x', 'B', seed: 1, names: old);
-    await settle();
-    await a.run(a.group.createList('Einkauf').changes);
-    await a.sync.savePrivate(const []);
-    await settle();
-    expect(b.group.lists.map((l) => l.name), ['Einkauf']);
-    expect(room.sent.map((e) => e.type).toSet(), {
-      old.snapshotRequest,
-      old.changes,
-    });
-    expect(room._accountData['@a:x']!.keys, [old.private]);
   });
 }

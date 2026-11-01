@@ -16,21 +16,6 @@ void main() {
     expect(KonsumEvents.version, 1);
   });
 
-  test('Alte Räume (de.azador.konsum) behalten ihre Namen', () {
-    const old = KonsumEventNames.legacy;
-    expect(old.roomType, 'de.azador.konsum.group');
-    expect(old.changes, 'de.azador.konsum.changes');
-    expect(old.snapshotRequest, 'de.azador.konsum.snapshot_request');
-    expect(old.private, 'de.azador.konsum.private');
-    expect(KonsumEventNames.forRoomType('de.azador.konsum.group'), old);
-    expect(
-      KonsumEventNames.forRoomType('de.azadoro.konsum.group'),
-      KonsumEventNames.current,
-    );
-    expect(KonsumEventNames.forRoomType('m.space'), isNull);
-    expect(KonsumEventNames.forRoomType(null), isNull);
-  });
-
   test('Beispiel „Milch auf die Liste“', () {
     final group = Group(HlcClock('5a1b9c2d', now: () => 1761800000000));
     final list = group.createList('Einkauf');

@@ -184,10 +184,9 @@ Quelle nennen.
   Dart-Pakete per Git-Abhängigkeit einbindbar; ein Test hält das Format
   fest (2026-10-30)
 
-- Namensraum der Matrix-Ereignisse `de.azadoro.konsum`. Räume aus der Zeit vor
-  der Umbenennung (`de.azador.konsum.group`) werden weiter erkannt und
-  behalten ihre alten Ereignistypen; unter Linux zieht das Datenverzeichnis
-  einmalig um (2026-11-01)
+- Namensraum der Matrix-Ereignisse `de.azadoro.konsum`. Räume mit dem alten
+  Namensraum `de.azador.konsum` werden nicht mehr erkannt; die Daten wurden
+  von Hand in neue Gruppen übertragen (2026-11-01)
 
 ## Offene Punkte
 

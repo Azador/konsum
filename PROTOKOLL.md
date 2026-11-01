@@ -49,14 +49,6 @@ Konsum legt Räume so an:
 Ein Client erkennt Konsum-Gruppen ausschließlich am Raumtyp. Räume ohne
 diesen Typ sind keine Konsum-Gruppen.
 
-### Alte Räume (`de.azador.konsum`)
-
-Bis App-Version 0.3 hieß der Namensraum `de.azador.konsum`. Räume mit dem
-Raumtyp `de.azador.konsum.group` sind ebenfalls Konsum-Gruppen. In ihnen
-gelten durchgehend die alten Namen (`de.azador.konsum.changes`,
-`.snapshot_request`, `.private`), damit ältere Installationen weiter
-mitlesen. Ein Raum wechselt seinen Namensraum nie; neue Räume werden immer
-mit `de.azadoro.konsum` angelegt. Inhalte und Abläufe sind in beiden gleich.
 
 **Verschlüsselung:** Gruppen sind normalerweise Ende-zu-Ende-verschlüsselt.
 Ein Client, der Megolm nicht kann, sieht in solchen Räumen nur

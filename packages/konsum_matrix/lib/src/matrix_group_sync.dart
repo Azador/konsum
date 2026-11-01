@@ -8,7 +8,7 @@ import 'transport.dart';
 
 /// Synchronisiert eine Gruppe über einen Matrix-Raum.
 ///
-/// - Änderungen gehen als `…changes`-Ereignisse in den Raum ([names]).
+/// - Änderungen gehen als `de.azadoro.konsum.changes`-Ereignisse in den Raum.
 /// - Neue Mitglieder und neue Geräte können ältere verschlüsselte Ereignisse
 ///   meist nicht entschlüsseln. Deshalb fragt ein Gerät ohne Daten nach dem
 ///   vollständigen Stand, und tritt jemand bei, schickt ein anderes Mitglied
@@ -23,14 +23,13 @@ class MatrixGroupSync implements GroupSync {
     this._transport, {
     math.Random? random,
     this.maxReplyDelay = const Duration(seconds: 3),
-    this.names = KonsumEventNames.current,
   }) : _random = random ?? math.Random() {
     _subscriptions
       ..add(_transport.events.listen(_onEvent))
       ..add(_transport.gaps.listen((_) => _requestSnapshot()))
       ..add(
         _transport.accountDataUpdates.listen((update) {
-          if (update.$1 == names.private) {
+          if (update.$1 == KonsumEvents.private) {
             _incomingPrivate.add(decodeChanges(update.$2));
           }
         }),
@@ -40,9 +39,6 @@ class MatrixGroupSync implements GroupSync {
   final RoomTransport _transport;
   final math.Random _random;
   final Duration maxReplyDelay;
-
-  /// Ereignistypen dieses Raums (hängen an seinem Raumtyp).
-  final KonsumEventNames names;
   final _subscriptions = <StreamSubscription<Object?>>[];
   final _incoming = StreamController<List<Change>>.broadcast();
   final _incomingPrivate = StreamController<List<Change>>.broadcast();
@@ -68,14 +64,14 @@ class MatrixGroupSync implements GroupSync {
   /// Bei leerem lokalem Stand um den vollständigen Stand bitten und die
   /// bereits gespeicherten privaten Daten übernehmen.
   Future<void> _start() async {
-    final private = _transport.accountData(names.private);
+    final private = _transport.accountData(KonsumEvents.private);
     if (private != null) _incomingPrivate.add(decodeChanges(private));
     if (_snapshot().isEmpty) await _requestSnapshot();
   }
 
   Future<void> _requestSnapshot() async {
     try {
-      await _transport.send(names.snapshotRequest, {
+      await _transport.send(KonsumEvents.snapshotRequest, {
         'v': KonsumEvents.version,
         'device': _transport.deviceId,
       });
@@ -90,20 +86,20 @@ class MatrixGroupSync implements GroupSync {
       e.content['device'] == _transport.deviceId;
 
   void _onEvent(RoomEvent e) {
-    final type = e.type;
-    if (type == names.changes) {
-      if (_isOwnDevice(e)) return;
-      final changes = decodeChanges(e.content);
-      if (changes.isNotEmpty) _incoming.add(changes);
-      if (e.content['snapshot'] == true) _cancelReply();
-    } else if (type == names.snapshotRequest) {
-      if (!_isOwnDevice(e)) _scheduleReply();
-    } else if (type == 'm.room.member') {
-      if (e.content['membership'] == 'join' &&
-          e.stateKey != null &&
-          e.stateKey != _transport.userId) {
-        _scheduleReply();
-      }
+    switch (e.type) {
+      case KonsumEvents.changes:
+        if (_isOwnDevice(e)) return;
+        final changes = decodeChanges(e.content);
+        if (changes.isNotEmpty) _incoming.add(changes);
+        if (e.content['snapshot'] == true) _cancelReply();
+      case KonsumEvents.snapshotRequest:
+        if (!_isOwnDevice(e)) _scheduleReply();
+      case 'm.room.member':
+        if (e.content['membership'] == 'join' &&
+            e.stateKey != null &&
+            e.stateKey != _transport.userId) {
+          _scheduleReply();
+        }
     }
   }
 
@@ -139,7 +135,7 @@ class MatrixGroupSync implements GroupSync {
       device: _transport.deviceId,
       snapshot: snapshot,
     )) {
-      await _transport.send(names.changes, content);
+      await _transport.send(KonsumEvents.changes, content);
     }
   }
 
@@ -154,7 +150,7 @@ class MatrixGroupSync implements GroupSync {
       maxBytes: 1 << 30,
     );
     return _transport.setAccountData(
-      names.private,
+      KonsumEvents.private,
       chunks.isEmpty
           ? {'v': KonsumEvents.version, 'changes': const <Object?>[]}
           : chunks.single,
