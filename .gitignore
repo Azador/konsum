@@ -14,5 +14,4 @@ app/web/fonts/fallback/
 *.iml
 .vscode/
 
-# Sicherungsdateien von Editoren (können Passwörter enthalten)
 *~
