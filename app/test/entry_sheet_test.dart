@@ -88,6 +88,44 @@ void main() {
     await finish(tester);
   });
 
+  testWidgets('Packungsgröße nachträglich: Preis bleibt beim Tippen', (
+    tester,
+  ) async {
+    final (state, listId, hack) = await setUp(tester);
+    final session = state.currentGroup!;
+    session.apply(session.group.addToList(listId, hack, quantity: 1));
+    session.apply(
+      session.group.updateEntry(listId, hack, {'price': 299, 'basePrice': 299}),
+    );
+    await tester.pump();
+    await openSheet(tester);
+    expect(text(tester, 'Preis (€)'), '2,99');
+
+    // Zeichen für Zeichen, wie auf der Tastatur.
+    for (final typed in ['5', '50', '500']) {
+      await tester.enterText(field('Inhalt je Packung'), typed);
+      await tester.pump();
+      expect(text(tester, 'Preis (€)'), '2,99');
+    }
+    expect(text(tester, '€/kg'), '5,98');
+
+    // Inhaltseinheit ändern: Preis bleibt, Kilopreis folgt.
+    await tester.tap(find.text('g').last);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('kg').last);
+    await tester.pumpAndSettle();
+    expect(text(tester, 'Preis (€)'), '2,99');
+    expect(text(tester, '€/kg'), '0,01');
+
+    await tester.tap(find.text('Speichern'));
+    await tester.pumpAndSettle();
+    final e = session.group.entries(listId).single;
+    expect(e.packSize, 500);
+    expect(e.packUnit, Units.kilogram);
+    expect(e.totalCents, 299);
+    await finish(tester);
+  });
+
   testWidgets('Packungsgröße: Preis je kg, Artikel merkt sich die Größe', (
     tester,
   ) async {
