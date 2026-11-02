@@ -10,6 +10,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../storage/matrix_db.dart';
 import 'app_state.dart';
 import 'group_session.dart';
+import 'key_setup.dart';
 import 'oidc_redirect.dart';
 
 const _backendType = 'matrix';
@@ -333,6 +334,16 @@ class MatrixService extends ChangeNotifier {
       rethrow;
     }
   });
+
+  /// Richtet die Geräte-Verifizierung neu ein; ersetzt eine vorhandene
+  /// Identität (siehe [KeySetup]).
+  KeySetup startKeySetup() {
+    final client = _client;
+    if (client == null || client.encryption == null) {
+      throw StateError('Verschlüsselung nicht verfügbar');
+    }
+    return KeySetup(client)..addListener(notifyListeners);
+  }
 
   /// Merkt sich [request] als laufende Verifizierung. Läuft schon eine,
   /// wird die neue abgelehnt.
