@@ -97,7 +97,12 @@ class _EntrySheetState extends State<_EntrySheet> {
 
   /// Menge, Einheit oder Packungsgröße geändert: Preis über den Grundpreis
   /// neu berechnen; ist nur der Preis bekannt, den Grundpreis aus ihm.
-  void _amountChanged() {
+  ///
+  /// Mit [keepPrice] (Inhalt je Packung geändert) bleibt der Preis und der
+  /// Grundpreis folgt: Eine Packung kostet gleich viel, egal was man als
+  /// Inhalt einträgt. Sonst würde beim Tippen von „500“ g der Kilopreis
+  /// schon bei „5“ g festgelegt und der Preis auf das Hundertfache wachsen.
+  void _amountChanged({bool keepPrice = false}) {
     final base = _base;
     if (_baseUnit != _shownBaseUnit) {
       // Andere Grundeinheit (z. B. €/kg → €/Dose): der alte Grundpreis passt
@@ -105,6 +110,7 @@ class _EntrySheetState extends State<_EntrySheet> {
       _shownBaseUnit = _baseUnit;
       _setBasePrice(null);
     }
+    if (keepPrice && parseCents(_price.text) != null) _setBasePrice(null);
     if (base != null && base.amount > 0) {
       if (_basePrice != null) {
         _price.text = formatCentsInput((_basePrice! * base.amount).round());
@@ -288,7 +294,7 @@ class _EntrySheetState extends State<_EntrySheet> {
                         hintText: 'optional',
                         border: const OutlineInputBorder(),
                       ),
-                      onChanged: (_) => _amountChanged(),
+                      onChanged: (_) => _amountChanged(keepPrice: true),
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -299,7 +305,7 @@ class _EntrySheetState extends State<_EntrySheet> {
                       allowNone: false,
                       onChanged: (u) {
                         _packUnit = u ?? Units.gram;
-                        _amountChanged();
+                        _amountChanged(keepPrice: true);
                       },
                     ),
                   ),
