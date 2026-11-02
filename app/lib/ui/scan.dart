@@ -70,7 +70,9 @@ class _ScanPageState extends State<_ScanPage> {
 /// Verarbeitet einen gescannten Barcode auf einer Liste:
 /// bekannt und offen auf der Liste → abhaken; bekannt → hinzufügen;
 /// unbekannt → Produkt nachschlagen und einem Artikel zuordnen.
-Future<void> handleListScan(
+///
+/// Gibt die ID des Artikels zurück, wenn er auf die Liste kam.
+Future<String?> handleListScan(
   BuildContext context,
   GroupSession session,
   String listId,
@@ -82,9 +84,9 @@ Future<void> handleListScan(
 
   if (article == null) {
     final info = await _lookup(code);
-    if (!context.mounted) return;
+    if (!context.mounted) return null;
     final articleId = await assignBarcodeDialog(context, session, code, info);
-    if (articleId == null) return;
+    if (articleId == null) return null;
     article = group.article(articleId)!;
   } else if (group.productInfo(code) == null) {
     // Produktdaten nachtragen, ohne zu warten.
@@ -112,7 +114,9 @@ Future<void> handleListScan(
       actionLabel: 'Rückgängig',
       onAction: () => session.apply(group.removeFromList(listId, article!.id)),
     );
+    return article.id;
   }
+  return null;
 }
 
 Future<ProductInfo?> _lookup(String code) async {

@@ -26,6 +26,12 @@ class _ListPageState extends State<ListPage> {
   final _input = TextEditingController();
   final _focus = FocusNode();
 
+  /// Schlüssel der Einträge, um zu einem neuen hinzuscrollen.
+  final _entryKeys = <String, GlobalKey>{};
+
+  /// Ob die Bildschirmtastatur beim letzten Aufbau offen war.
+  bool _keyboardOpen = false;
+
   GroupSession get _session => widget.session;
   Group get _group => widget.session.group;
 
@@ -47,7 +53,7 @@ class _ListPageState extends State<ListPage> {
     // Ein Handscanner tippt den Barcode ins Feld und schickt Enter.
     if (OpenFoodFacts.isProductCode(input.trim())) {
       _input.clear();
-      handleListScan(context, _session, widget.listId, input.trim());
+      _scan(input.trim());
       return;
     }
     final parsed = parseQuickAdd(input);
@@ -86,10 +92,43 @@ class _ListPageState extends State<ListPage> {
     _session.apply(changes);
     _input.clear();
     _focus.requestFocus();
+    _scrollTo(articleId);
+  }
+
+  Future<void> _scan(String code) async {
+    final added = await handleListScan(context, _session, widget.listId, code);
+    if (added != null) _scrollTo(added);
+  }
+
+  /// Scrollt nach dem nächsten Aufbau so, dass der Eintrag zu sehen ist.
+  void _scrollTo(String articleId) {
+    final id = ListEntry.entryId(widget.listId, articleId);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final target = _entryKeys[id]?.currentContext;
+      if (target == null || !target.mounted) return;
+      Scrollable.ensureVisible(
+        target,
+        // Mittig, damit er nicht unter den Vorschlägen liegt.
+        alignment: 0.5,
+        duration: const Duration(milliseconds: 250),
+        curve: Curves.easeOut,
+      );
+    });
+  }
+
+  /// Schließt man die Tastatur (z. B. mit „Zurück“), behält das Feld auf
+  /// Android den Fokus. Dann auch den Fokus und damit die Vorschläge weg.
+  void _watchKeyboard(BuildContext context) {
+    final open = MediaQuery.viewInsetsOf(context).bottom > 0;
+    if (_keyboardOpen && !open && _focus.hasFocus) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _focus.unfocus());
+    }
+    _keyboardOpen = open;
   }
 
   @override
   Widget build(BuildContext context) {
+    _watchKeyboard(context);
     final app = AppScope.of(context);
     final list = _group.lists.where((l) => l.id == widget.listId).firstOrNull;
     final shopId = app.shopFor(_session);
@@ -158,40 +197,21 @@ class _ListPageState extends State<ListPage> {
       body: Column(
         children: [
           Expanded(
-            child: all.isEmpty
-                ? const Center(child: Text('Die Liste ist leer.'))
-                : ListView(
-                    children: [
-                      ..._withHeaders(open, shopId != null),
-                      if (checked.isNotEmpty && app.showChecked) ...[
-                        const Divider(),
-                        for (final e in checked)
-                          _EntryTile(_session, e, shopId),
-                      ],
-                      if (checked.isNotEmpty && !app.showChecked)
-                        ListTile(
-                          dense: true,
-                          title: Text('${checked.length} abgehakt'),
-                          onTap: app.toggleShowChecked,
-                        ),
-                    ],
+            child: Stack(
+              children: [
+                Positioned.fill(
+                  child: _listAndTotal(all, open, checked, total, shopId),
+                ),
+                if (_focus.hasFocus)
+                  Positioned(
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    child: _suggestions(),
                   ),
-          ),
-          if (total.cents > 0)
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-              child: Row(
-                children: [
-                  Text(
-                    'Summe ca. ${formatCents(total.cents)}',
-                    style: Theme.of(context).textTheme.titleSmall,
-                  ),
-                  if (total.unknown > 0)
-                    Text('  (${total.unknown} ohne Preis)'),
-                ],
-              ),
+              ],
             ),
-          if (_focus.hasFocus) _suggestions(),
+          ),
           Padding(
             padding: const EdgeInsets.fromLTRB(12, 4, 12, 8),
             child: TextField(
@@ -209,12 +229,7 @@ class _ListPageState extends State<ListPage> {
                         onPressed: () async {
                           final code = await scanBarcode(context);
                           if (code != null && context.mounted) {
-                            await handleListScan(
-                              context,
-                              _session,
-                              widget.listId,
-                              code,
-                            );
+                            await _scan(code);
                           }
                         },
                       )
@@ -232,6 +247,67 @@ class _ListPageState extends State<ListPage> {
     );
   }
 
+  /// Liste der Einträge, darunter die Summe.
+  Widget _listAndTotal(
+    List<ListEntry> all,
+    List<ListEntry> open,
+    List<ListEntry> checked,
+    ({int cents, int unknown}) total,
+    String? shopId,
+  ) {
+    final app = AppScope.of(context);
+    final ids = {for (final e in all) e.id};
+    _entryKeys.removeWhere((id, _) => !ids.contains(id));
+    return Column(
+      children: [
+        Expanded(
+          child: all.isEmpty
+              ? const Center(child: Text('Die Liste ist leer.'))
+              // Alle Einträge gebaut (keine lange Liste), damit sich jeder
+              // per ensureVisible in die Sicht holen lässt.
+              : SingleChildScrollView(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      ..._withHeaders(open, shopId != null),
+                      if (checked.isNotEmpty && app.showChecked) ...[
+                        const Divider(),
+                        for (final e in checked) _tile(e, shopId),
+                      ],
+                      if (checked.isNotEmpty && !app.showChecked)
+                        ListTile(
+                          dense: true,
+                          title: Text('${checked.length} abgehakt'),
+                          onTap: app.toggleShowChecked,
+                        ),
+                    ],
+                  ),
+                ),
+        ),
+        if (total.cents > 0)
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+            child: Row(
+              children: [
+                Text(
+                  'Summe ca. ${formatCents(total.cents)}',
+                  style: Theme.of(context).textTheme.titleSmall,
+                ),
+                if (total.unknown > 0) Text('  (${total.unknown} ohne Preis)'),
+              ],
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _tile(ListEntry e, String? shopId) => KeyedSubtree(
+    key: _entryKeys.putIfAbsent(e.id, GlobalKey.new),
+    child: _EntryTile(_session, e, shopId),
+  );
+
+  /// Vorschläge, halbdurchsichtig über dem unteren Rand der Liste; nur so
+  /// hoch wie nötig, höchstens drei Zeilen.
   Widget _suggestions() {
     final query = parseQuickAdd(_input.text);
     final items = _group
@@ -239,10 +315,11 @@ class _ListPageState extends State<ListPage> {
         .take(12)
         .toList();
     if (items.isEmpty) return const SizedBox.shrink();
+    final colors = Theme.of(context).colorScheme;
     return Container(
-      constraints: const BoxConstraints(maxHeight: 120),
-      padding: const EdgeInsets.symmetric(horizontal: 12),
-      alignment: Alignment.bottomLeft,
+      color: colors.surface.withValues(alpha: 0.25),
+      constraints: const BoxConstraints(maxHeight: 132),
+      padding: const EdgeInsets.fromLTRB(12, 4, 12, 4),
       child: SingleChildScrollView(
         child: Wrap(
           spacing: 6,
@@ -251,6 +328,10 @@ class _ListPageState extends State<ListPage> {
             for (final a in items)
               ActionChip(
                 label: Text(a.name),
+                // Deckend, damit der Name über der Liste lesbar bleibt.
+                backgroundColor: colors.secondaryContainer,
+                side: BorderSide.none,
+                elevation: 2,
                 onPressed: () => _addArticle(
                   a.id,
                   quantity: query.quantity,
@@ -286,9 +367,7 @@ class _ListPageState extends State<ListPage> {
           lastCategory = category;
         }
       }
-      result.add(
-        _EntryTile(_session, e, AppScope.of(context).shopFor(_session)),
-      );
+      result.add(_tile(e, AppScope.of(context).shopFor(_session)));
     }
     return result;
   }
