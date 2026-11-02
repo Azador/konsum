@@ -92,6 +92,16 @@ class VerificationPage extends StatelessWidget {
           '$other möchte dieses Gerät verifizieren.',
           style: theme.textTheme.titleMedium,
         ),
+        if (request.userId == matrix.userId &&
+            matrix.sessionTrust != SessionTrust.verified) ...[
+          const SizedBox(height: 16),
+          const Text(
+            'Dieses Gerät ist selbst nicht verifiziert. Ist das andere Gerät '
+            'auch nicht verifiziert, bleibt es das nach dem Vergleich. Richte '
+            'dann zuerst unter „Matrix-Konto“ die Verifizierung ein oder setze '
+            'sie dort zurück.',
+          ),
+        ],
         const SizedBox(height: 24),
         FilledButton(
           onPressed: request.acceptVerification,

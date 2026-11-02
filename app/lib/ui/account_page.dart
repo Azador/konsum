@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../state/matrix_service.dart';
 import 'dialogs.dart';
+import 'key_setup_page.dart';
 import 'scope.dart';
 
 /// Anmeldung am Matrix-Server oder neues Konto anlegen.
@@ -115,17 +116,27 @@ class _AccountPageState extends State<AccountPage> {
         ListTile(
           leading: Icon(Icons.verified_user_outlined),
           title: Text('Dieses Gerät ist verifiziert'),
+          subtitle: Text(
+            'Andere Geräte und Apps (z. B. Element) bestätigst du, indem du '
+            'dort die Verifizierung mit einem anderen Gerät startest und die '
+            'Anfrage hier annimmst.',
+          ),
         ),
       ],
-      SessionTrust.noCrossSigning => const [
-        ListTile(
+      SessionTrust.noCrossSigning => [
+        const ListTile(
           leading: Icon(Icons.info_outline),
           title: Text('Geräte-Verifizierung nicht eingerichtet'),
           subtitle: Text(
-            'Für dieses Konto gibt es noch kein Cross-Signing. Richte es in '
-            'einer anderen Matrix-App ein (z. B. Element), danach lässt sich '
-            'dieses Gerät hier verifizieren.',
+            'Richte sie ein, damit du weitere Geräte und andere Matrix-Apps '
+            '(z. B. Element) mit diesem Gerät bestätigen kannst.',
           ),
+        ),
+        const SizedBox(height: 8),
+        FilledButton.icon(
+          icon: const Icon(Icons.verified_user_outlined),
+          label: const Text('Einrichten'),
+          onPressed: busy ? null : () => _keySetup(reset: false),
         ),
       ],
       SessionTrust.unverified => [
@@ -149,9 +160,21 @@ class _AccountPageState extends State<AccountPage> {
           label: const Text('Mit Wiederherstellungsschlüssel'),
           onPressed: busy ? null : () => _recoveryKey(matrix),
         ),
+        const SizedBox(height: 8),
+        TextButton(
+          onPressed: busy ? null : () => _keySetup(reset: true),
+          child: const Text(
+            'Kein verifiziertes Gerät und kein Schlüssel? Zurücksetzen …',
+            textAlign: TextAlign.center,
+          ),
+        ),
       ],
     };
   }
+
+  Future<void> _keySetup({required bool reset}) => Navigator.of(
+    context,
+  ).push(MaterialPageRoute<void>(builder: (_) => KeySetupPage(reset: reset)));
 
   Future<void> _deleteAccount(MatrixService matrix) async {
     final ok = await showDialog<bool>(
