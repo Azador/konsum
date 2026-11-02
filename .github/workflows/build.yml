@@ -2,8 +2,8 @@
 # Der Job „Ergebnis“ ist nur grün, wenn alle anderen Jobs grün sind; ihn als
 # Pflicht-Check in der Regel für main eintragen.
 #
-# Android wird signiert, wenn diese Secrets gesetzt sind (sonst unsigniert,
-# nicht installierbar):
+# Die APK wird signiert, wenn diese Secrets gesetzt sind (sonst unsigniert,
+# nicht installierbar). Das App-Bundle für Google Play baut release.yml.
 #   ANDROID_KEYSTORE_BASE64   base64 -w0 konsum-release.jks
 #   ANDROID_KEYSTORE_PASSWORD Passwort des Keystores
 #   ANDROID_KEY_ALIAS         z. B. konsum
@@ -92,16 +92,14 @@ jobs:
             echo "keyAlias=${ALIAS:-konsum}"
           } > app/android/key.properties
           echo "SIGNED=1" >> "$GITHUB_ENV"
-      - name: APK und App-Bundle bauen
+      - name: APK bauen
         working-directory: app
         run: |
           flutter build apk --release
           version="$(sed -n 's/^version: *\([^+]*\).*/\1/p' pubspec.yaml)"
           mkdir -p ../dist
           if [ -n "${SIGNED:-}" ]; then
-            flutter build appbundle --release
             cp build/app/outputs/flutter-apk/app-release.apk "../dist/konsum-$version.apk"
-            cp build/app/outputs/bundle/release/app-release.aab "../dist/konsum-$version.aab"
           else
             cp build/app/outputs/flutter-apk/app-release.apk "../dist/konsum-$version-unsigned.apk"
           fi
@@ -112,12 +110,6 @@ jobs:
       - uses: actions/upload-artifact@v7
         with:
           path: dist/*.apk
-          archive: false
-          if-no-files-found: error
-      - uses: actions/upload-artifact@v7
-        if: env.SIGNED
-        with:
-          path: dist/*.aab
           archive: false
           if-no-files-found: error
 

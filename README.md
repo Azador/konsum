@@ -44,22 +44,35 @@ Installationspakete für Linux (`.deb`, `.tar.gz`):
 
 ## Versionen und Branches
 
-Änderungen an `main` laufen nur über Pull Requests. Jeder PR erhöht die
-Version nach SemVer in `app/pubspec.yaml` (`version: X.Y.Z+N`): Patch für
-Fehlerbehebungen, Minor für neue Funktionen, Major für inkompatible
-Änderungen (vor 1.0: Minor). Die Build-Nummer `+N` steigt immer, sie ist der
-Android-Versionscode. Die Pakete `packages/konsum_core` und
-`packages/konsum_matrix` bekommen eine neue Version, wenn sie sich ändern.
+Änderungen an `main` laufen nur über Pull Requests.
 
-Maßgeblich ist der Stand, der mit dem PR nach `main` kommt. Einzelne Commits
-im Branch brauchen keine eigene Version.
+Die Version in `app/pubspec.yaml` (`version: X.Y.Z+N`) ändert sich nur für
+Releases, nicht mit jedem PR. Auf `main` steht die Version des nächsten
+geplanten Releases: Nach einem Release erhöht der erste PR auf die nächste
+Patch-Version, vor dem Release wird sie bei Bedarf angepasst – Minor bei neuen
+Funktionen, Major bei inkompatiblen Änderungen (vor 1.0: Minor). Die
+Build-Nummer `+N` ist der Android-Versionscode; sie muss bei jedem Upload zu
+Google Play neu sein, auch für Testversionen. Die Pakete
+`packages/konsum_core` und `packages/konsum_matrix` bekommen eine neue
+Version, wenn sie sich ändern.
+
+Ein Release ist ein Tag `vX.Y.Z` auf `main` mit GitHub-Release; F-Droid baut
+anhand der Tags, Google Play bekommt das App-Bundle desselben Stands.
 
 ## Automatischer Build
 
 `.github/workflows/build.yml` läuft bei jedem PR und Push auf `main`: Tests
-und Analyse, danach Android (APK, mit Signier-Secrets auch AAB), Linux
-(`.deb`, `.tar.gz`) und Web (`.tar.gz`). Die Pakete hängen als Artefakte am
-Lauf. Der Job „Ergebnis“ ist nur grün, wenn alles geklappt hat.
+und Analyse, danach Android (APK), Linux (`.deb`, `.tar.gz`) und Web
+(`.tar.gz`). Die Pakete hängen als Artefakte am Lauf. Der Job „Ergebnis“ ist
+nur grün, wenn alles geklappt hat.
+
+`.github/workflows/release.yml` baut zu jedem Tag `vX.Y.Z` das App-Bundle für
+Google Play, signiert mit dem Upload-Schlüssel (Secrets
+`PLAY_UPLOAD_KEYSTORE_BASE64` und `PLAY_UPLOAD_KEYSTORE_PASSWORD` im
+Environment `release`). Er bricht ab, wenn der Tag nicht zur Version in
+`app/pubspec.yaml` passt. Das Bundle hängt als Artefakt am Lauf und wird von
+Hand in der Play Console hochgeladen. Von Hand gestartet baut er einen
+vorhandenen Tag nach.
 
 ## Veröffentlichung
 
@@ -67,6 +80,12 @@ Lauf. Der Job „Ergebnis“ ist nur grün, wenn alles geklappt hat.
 |---|---|
 | `fastlane/metadata/android` | Store-Texte, Icon, Änderungshinweise (F-Droid liest sie direkt, für Google Play zum Kopieren) |
 | `fdroid/de.azadoro.konsum.yml` | Bauanleitung für F-Droid (Vorlage für fdroiddata) |
+
+Signaturschlüssel (nicht im Repo):
+
+- `app/android/key.properties` → `konsum-release.jks`: signiert APKs (GitHub-Releases). Derselbe Schlüssel ist bei Google Play als App-Signaturschlüssel hinterlegt, Updates gehen also zwischen beiden Quellen.
+- `app/android/upload.properties` → `konsum-upload.jks`: Upload-Schlüssel für Google Play.
+  App-Bundle bauen: `KONSUM_KEY_PROPERTIES=upload.properties flutter build appbundle`
 
 ## Lizenz
 

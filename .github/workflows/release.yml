@@ -1,0 +1,94 @@
+# App-Bundle für Google Play zu einem Release-Tag (vX.Y.Z).
+#
+# Signiert mit dem Upload-Schlüssel aus dem Environment „release“:
+#   PLAY_UPLOAD_KEYSTORE_BASE64   base64 -w0 konsum-upload.jks
+#   PLAY_UPLOAD_KEYSTORE_PASSWORD Passwort des Keystores
+# Das Bundle hängt als Artefakt am Lauf und wird von Hand in der Play Console
+# hochgeladen.
+name: Release
+run-name: Release ${{ inputs.tag || github.ref_name }}
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Tag, für den das App-Bundle gebaut wird (z. B. v0.6.6)
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+env:
+  FLUTTER_VERSION: 3.47.8
+  TAG: ${{ inputs.tag || github.ref_name }}
+
+jobs:
+  play:
+    name: App-Bundle für Google Play
+    runs-on: ubuntu-24.04
+    environment: release
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: refs/tags/${{ env.TAG }}
+      - name: Version passt zum Tag?
+        run: |
+          version="$(sed -n 's/^version: *\([^+]*\).*/\1/p' app/pubspec.yaml)"
+          if [ "v$version" != "$TAG" ]; then
+            echo "::error::Tag $TAG, aber app/pubspec.yaml hat $version"
+            exit 1
+          fi
+          echo "VERSION=$version" >> "$GITHUB_ENV"
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+      - name: Upload-Schlüssel
+        env:
+          KEYSTORE: ${{ secrets.PLAY_UPLOAD_KEYSTORE_BASE64 }}
+          PASSWORD: ${{ secrets.PLAY_UPLOAD_KEYSTORE_PASSWORD }}
+        run: |
+          if [ -z "$KEYSTORE" ] || [ -z "$PASSWORD" ]; then
+            echo "::error::Secrets PLAY_UPLOAD_KEYSTORE_* im Environment „release“ fehlen"
+            exit 1
+          fi
+          echo "$KEYSTORE" | base64 -d > "$RUNNER_TEMP/upload.jks"
+          {
+            echo "storeFile=$RUNNER_TEMP/upload.jks"
+            echo "storePassword=$PASSWORD"
+            echo "keyAlias=upload"
+          } > app/android/upload.properties
+      - name: App-Bundle bauen
+        working-directory: app
+        env:
+          KONSUM_KEY_PROPERTIES: upload.properties
+        run: |
+          flutter build appbundle --release
+          mkdir -p ../dist
+          cp build/app/outputs/bundle/release/app-release.aab "../dist/konsum-$VERSION.aab"
+      - name: Signatur prüfen
+        run: |
+          # Unsigniert oder falscher Schlüssel: Play lehnt das Bundle ab.
+          keytool -printcert -jarfile "dist/konsum-$VERSION.aab" | tee "$RUNNER_TEMP/cert.txt"
+          grep -q "SHA256:" "$RUNNER_TEMP/cert.txt"
+          keytool -list -v -keystore "$RUNNER_TEMP/upload.jks" -alias upload \
+            -storepass:env PASSWORD | grep "SHA256:" > "$RUNNER_TEMP/upload.txt"
+          grep -qF "$(sed 's/^[[:space:]]*//' "$RUNNER_TEMP/upload.txt")" "$RUNNER_TEMP/cert.txt"
+        env:
+          PASSWORD: ${{ secrets.PLAY_UPLOAD_KEYSTORE_PASSWORD }}
+      - name: Schlüssel entfernen
+        if: always()
+        run: rm -f "$RUNNER_TEMP/upload.jks" app/android/upload.properties
+      - uses: actions/upload-artifact@v7
+        with:
+          path: dist/*.aab
+          archive: false
+          if-no-files-found: error
