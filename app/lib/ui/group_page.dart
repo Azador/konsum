@@ -74,7 +74,8 @@ class GroupPage extends StatelessWidget {
               title: const Text('Aufbewahrung'),
               subtitle: Text(
                 '${retentionLabel(group.retentionMonths)} · danach werden '
-                'Käufe und Spuren gelöschter Einträge entfernt',
+                'Käufe und Spuren gelöschter Einträge entfernt'
+                '${_serverRetentionNote(context)}',
               ),
               onTap: () async {
                 final months = await pickRetention(
@@ -132,6 +133,23 @@ class GroupPage extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  /// Hinweis, ob auch der Matrix-Server alte Nachrichten der Gruppe löscht.
+  String _serverRetentionNote(BuildContext context) {
+    final matrix = MatrixScope.maybeOf(context);
+    if (matrix == null || !matrix.isShared(session)) return '';
+    if (session.group.retentionMonths <= 0) return '';
+    return switch (matrix.retentionSupported) {
+      true =>
+        '\n\nAuch dein Matrix-Server löscht ältere Nachrichten der Gruppe. '
+            'Server anderer Mitglieder tun das nur, wenn sie es unterstützen.',
+      false =>
+        '\n\nDein Matrix-Server unterstützt das automatische Löschen '
+            'nicht: Ältere Nachrichten der Gruppe bleiben dort gespeichert '
+            '(verschlüsselt).',
+      null => '',
+    };
   }
 }
 

@@ -148,6 +148,8 @@ class MatrixService extends ChangeNotifier {
       // Konsum-Geräte von Konten mit Cross-Signing (z. B. durch Element)
       // keine Schlüssel und könnten nichts entschlüsseln.
       shareKeysWith: ShareKeysWith.all,
+      // Auch nach einem Neustart ohne Nachladen verfügbar.
+      importantStateEvents: {MatrixGroups.retentionType},
       // QR-Codes nicht: Dafür bräuchte es die Kamera auch unter Linux.
       verificationMethods: {
         KeyVerificationMethod.emoji,
@@ -158,6 +160,7 @@ class MatrixService extends ChangeNotifier {
     await client.init(waitForFirstSync: false);
     _syncSub = client.onSync.stream.listen((_) {
       _adoptRoomNames();
+      unawaited(_applyRetention());
       notifyListeners();
       unawaited(_adoptJoinedRooms());
     });
@@ -181,6 +184,7 @@ class MatrixService extends ChangeNotifier {
     if (client == null) return;
     _client = null;
     verification = null;
+    retentionSupported = null;
     await _syncSub?.cancel();
     await _verificationSub?.cancel();
     await _timelineSub?.cancel();
@@ -426,10 +430,64 @@ class MatrixService extends ChangeNotifier {
     if (current != null && !current.isDone) await current.cancel('m.user');
   }
 
+  /// Ob der eigene Matrix-Server Aufbewahrungsfristen umsetzt; null:
+  /// unbekannt (noch nicht gefragt oder nicht erreichbar).
+  bool? retentionSupported;
+
+  /// Räume, deren Frist gerade gesetzt wird.
+  final _settingRetention = <String>{};
+
+  /// Abgelehnte Fristen je Raum; nicht bei jedem Sync erneut versuchen.
+  final _retentionFailed = <String, int?>{};
+
+  /// Überträgt die Aufbewahrungsfrist der Gruppen in ihre Räume
+  /// (`m.room.retention`). Das darf nur, wer die Raumeinstellungen ändern
+  /// darf; andere Geräte überlassen es diesen.
+  Future<void> _applyRetention() async {
+    final groups = _groups;
+    if (groups == null) return;
+    for (final g in sharedGroups) {
+      final roomId = g.info.backend?['roomId'];
+      if (roomId is! String || !g.isConnected) continue;
+      final months = g.group.retentionMonths;
+      // Großzügig gerundet: Der Server soll nicht vor den Geräten löschen.
+      final wanted = months <= 0
+          ? null
+          : months * 31 * Duration.millisecondsPerDay;
+      if (groups.retention(roomId) == wanted ||
+          !groups.canSetRetention(roomId) ||
+          (_retentionFailed.containsKey(roomId) &&
+              _retentionFailed[roomId] == wanted) ||
+          !_settingRetention.add(roomId)) {
+        continue;
+      }
+      try {
+        await groups.setRetention(roomId, wanted);
+      } catch (e) {
+        _retentionFailed[roomId] = wanted;
+        debugPrint('Aufbewahrungsfrist für $roomId nicht gesetzt: $e');
+      } finally {
+        _settingRetention.remove(roomId);
+      }
+    }
+  }
+
+  Future<void> _checkRetentionSupport() async {
+    final groups = _groups;
+    if (groups == null || retentionSupported != null) return;
+    try {
+      retentionSupported = await groups.serverSupportsRetention();
+      notifyListeners();
+    } catch (_) {
+      // Offline: beim nächsten Verbinden erneut.
+    }
+  }
+
   /// Verbindet alle Matrix-Gruppen mit ihrem Raum.
   Future<void> connectAll() async {
     final groups = _groups;
     if (groups == null) return;
+    unawaited(_checkRetentionSupport());
     await _adoptJoinedRooms();
     for (final g in _app.groups) {
       final roomId = g.info.backend?['roomId'];
