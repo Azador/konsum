@@ -9,6 +9,7 @@ import 'dialogs.dart';
 import 'group_page.dart';
 import 'scope.dart';
 import 'shops_page.dart';
+import 'theme.dart';
 
 /// Seitenmenü: Gruppen mit ihren Listen und Verwaltung.
 class GroupDrawer extends StatelessWidget {
@@ -39,9 +40,18 @@ class GroupDrawer extends StatelessWidget {
         for (final g in app.groups) ...[
           ListTile(
             contentPadding: const EdgeInsets.only(left: 28, right: 12),
-            title: Text(
-              g.info.name,
-              style: Theme.of(context).textTheme.titleSmall,
+            title: Row(
+              children: [
+                Flexible(
+                  child: Text(
+                    g.info.name,
+                    style: Theme.of(context).textTheme.titleSmall,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                _ColorDot(app.colorFor(g)),
+              ],
             ),
             leading: Icon(_statusIcon(g.status), size: 20),
             trailing: IconButton(
@@ -160,4 +170,24 @@ class GroupDrawer extends StatelessWidget {
     final navigator = Navigator.of(context)..pop();
     navigator.push(MaterialPageRoute<void>(builder: (_) => page));
   }
+}
+
+/// Farbe des Farbschemas einer Gruppe, wie sie in der App erscheint.
+class _ColorDot extends StatelessWidget {
+  const _ColorDot(this.argb);
+
+  final int? argb;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    width: 10,
+    height: 10,
+    decoration: BoxDecoration(
+      shape: BoxShape.circle,
+      color: buildTheme(
+        argb == null ? null : Color(argb!),
+        Theme.of(context).brightness,
+      ).colorScheme.primary,
+    ),
+  );
 }
