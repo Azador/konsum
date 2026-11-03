@@ -67,6 +67,11 @@ class GroupSession extends ChangeNotifier {
     session.private.receive(_changes(json['private']));
     session.outbox.add(_changes(json['outbox']));
     session._privateDirty = json['privateDirty'] == true;
+    // Ältere Versionen haben Grabsteine lokaler Gruppen behalten.
+    if (info.backend == null) session.group.replica.dropTombstones();
+    // Beim Laden verworfener Inhalt (Grabsteine älterer Versionen) soll
+    // nicht bis zur nächsten Änderung in der Datei stehen bleiben.
+    await session.save();
     return session;
   }
 
@@ -105,6 +110,7 @@ class GroupSession extends ChangeNotifier {
     // Rein lokale Gruppen brauchen keine Outbox; beim Teilen wird der
     // vollständige Stand verschickt (siehe [share]).
     if (info.backend != null) outbox.add(changes);
+    _cleanUp(changes);
     _changed();
     unawaited(flush());
   }
@@ -134,6 +140,7 @@ class GroupSession extends ChangeNotifier {
       ..add(
         sync.incoming.listen((changes) {
           group.receive(changes);
+          _cleanUp(changes);
           _changed();
         }),
       )
@@ -171,6 +178,23 @@ class GroupSession extends ChangeNotifier {
     }
     _lastFlushFailed = !ok && (!outbox.isEmpty || _privateDirty);
     _changed();
+  }
+
+  /// Räumt nach Änderungen auf: Private Notizen gelöschter Einträge
+  /// verschwinden mit ihnen (sonst tauchten sie beim erneuten Hinzufügen
+  /// wieder auf), lokale Gruppen brauchen keine Grabsteine.
+  void _cleanUp(Iterable<Change> changes) {
+    for (final c in changes) {
+      if (c.type == Types.entry &&
+          c.field == deletedField &&
+          c.value == true &&
+          group.replica.get(Types.entry, c.id) == null &&
+          private.note(c.id) != null) {
+        private.setNote(c.id, null);
+        _privateDirty = true;
+      }
+    }
+    if (info.backend == null) group.replica.dropTombstones();
   }
 
   void _changed() {

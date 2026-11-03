@@ -72,4 +72,71 @@ void main() {
     await a.save();
     await b.save();
   });
+
+  test('Gelöschtes behält keinen Inhalt, private Notiz geht mit', () async {
+    final hub = MemoryHub();
+    final store = MemoryStore();
+    final a = GroupSession.create(
+      GroupInfo(id: 'g', name: 'Verein', backend: {'type': 'test'}),
+      'a',
+      store,
+    );
+    final b = GroupSession.create(
+      GroupInfo(id: 'g', name: 'Verein', backend: {'type': 'test'}),
+      'b',
+      MemoryStore(),
+    );
+    await a.attach(hub.connect('alice'));
+    await b.attach(hub.connect('alice'));
+    final list = a.group.createList('Einkauf');
+    final buch = a.group.createArticle('Buch');
+    a.apply([
+      ...list.changes,
+      ...buch.changes,
+      ...a.group.addToList(list.id, buch.id, note: 'gemeinsam'),
+    ]);
+    final entryId = '${list.id}/${buch.id}';
+    a.applyPrivate(a.private.setNote(entryId, 'geheim'));
+    b.applyPrivate(b.private.setNote(entryId, 'auch geheim'));
+    await Future<void>.delayed(Duration.zero);
+
+    a.apply(a.group.removeFromList(list.id, buch.id));
+    await Future<void>.delayed(Duration.zero);
+
+    for (final s in [a, b]) {
+      expect(s.private.note(entryId), isNull);
+      final entry = s.group.replica.snapshot().where(
+        (c) => c.type == Types.entry && c.id == entryId,
+      );
+      expect(entry.map((c) => c.field).toSet(), {
+        deletedField,
+        purgedField,
+      }, reason: 'nur Grabstein');
+    }
+
+    // Wieder hinzugefügt: keine alten Notizen.
+    a.apply(a.group.addToList(list.id, buch.id));
+    expect(a.group.entries(list.id).single.note, isNull);
+    expect(a.private.note(entryId), isNull);
+    await a.save();
+    await b.save();
+  });
+
+  test('Lokale Gruppe: Gelöschtes verschwindet ganz', () async {
+    final store = MemoryStore();
+    final s = GroupSession.create(
+      GroupInfo(id: 'g', name: 'Allein'),
+      'a',
+      store,
+    );
+    final list = s.group.createList('Einkauf');
+    final buch = s.group.createArticle('Buch');
+    s.apply([...list.changes, ...buch.changes]);
+    s.apply(s.group.addToList(list.id, buch.id, note: 'weg damit'));
+    s.apply(s.group.removeFromList(list.id, buch.id));
+    s.apply(s.group.deleteArticle(buch.id));
+    final ids = s.group.replica.snapshot().map((c) => c.id).toSet();
+    expect(ids, {list.id});
+    await s.save();
+  });
 }

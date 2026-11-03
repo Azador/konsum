@@ -145,12 +145,28 @@ mehrfach, verspätet und in beliebiger Reihenfolge eintreffen.
 
 Gelöscht wird nicht, sondern markiert: Das Feld `_deleted` mit Wert `true`
 (Tombstone). Ein Objekt **existiert**, wenn es mindestens ein Feld hat und
-`_deleted` nicht `true` ist. Beim Anlegen setzt Konsum `_deleted` auf
+`_deleted` nicht `true` ist. `_deleted` und `_purged` gehören nicht zu den
+Daten des Objekts. Beim Anlegen setzt Konsum `_deleted` auf
 `false`; so kann ein Objekt nach dem Löschen wieder angelegt werden (z. B.
 ein Artikel, der erneut auf die Liste kommt).
 
 Tombstones bleiben im Stand und gehören in jeden Schnappschuss, sonst würden
 gelöschte Objekte durch ältere Geräte wiederbelebt.
+
+**Kein Inhalt in Tombstones** (Datensparsamkeit): Wer einen Tombstone
+anwendet, setzt zusätzlich das Feld `_purged` (Wert `true`) mit dem
+Zeitstempel des Tombstones, sofern das neuer ist als ein vorhandenes
+`_purged`. Ein Gerät verwirft alle Felder eines Objekts (außer `_deleted` und
+`_purged`), deren Zeitstempel **kleiner oder gleich** dem von `_purged` ist,
+und nimmt solche Changes auch später nicht mehr an – auch nachdem das Objekt
+wieder angelegt wurde. Neuere Felder (gleichzeitige Bearbeitung, erneutes
+Anlegen) bleiben. `_purged` gehört wie jedes Feld in Schnappschüsse; so
+verwirft auch ein Gerät, das das Löschen verpasst hat, denselben Inhalt.
+
+Das Ergebnis hängt nicht von der Reihenfolge ab. Clients, die `_purged` nicht
+kennen, bewahren es als unbekanntes Feld und geben es weiter; schicken sie
+Tombstones mit Inhalt, wird dieser beim Empfang verworfen. Wer ein Objekt
+wieder anlegt, schreibt alle Felder neu, die es haben soll.
 
 ### Unbekanntes bewahren
 

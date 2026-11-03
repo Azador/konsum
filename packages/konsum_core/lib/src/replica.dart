@@ -3,6 +3,10 @@ import 'hlc.dart';
 /// Feldname, mit dem ein Objekt als gelöscht markiert wird (Tombstone).
 const deletedField = '_deleted';
 
+/// Bis zu welchem Zeitpunkt der Inhalt eines Objekts gelöscht ist (Zeitstempel
+/// des letzten Grabsteins). Siehe [Replica.apply].
+const purgedField = '_purged';
+
 /// Änderung eines einzelnen Feldes eines Objekts. Das ist die Einheit, die
 /// zwischen Geräten ausgetauscht wird.
 class Change {
@@ -58,14 +62,50 @@ class Replica {
   final _objects = <String, Map<String, Map<String, _Field>>>{};
 
   /// Wendet [change] an. Liefert true, wenn sich der Zustand geändert hat.
+  ///
+  /// Gelöschte Objekte behalten keinen Inhalt: Ein Grabstein
+  /// (`_deleted: true`) setzt die Markierung [purgedField] auf seinen
+  /// Zeitpunkt. Alle Felder, die nicht neuer sind als die Markierung,
+  /// verschwinden und werden auch später nicht mehr angenommen – auch wenn
+  /// das Objekt wieder angelegt wird. Die Markierung wandert in Schnappschüssen
+  /// mit, sodass Geräte, die das Löschen verpasst haben, dasselbe verwerfen.
+  /// Das Ergebnis hängt nicht von der Reihenfolge ab.
   bool apply(Change change) {
     final fields = _objects
         .putIfAbsent(change.type, () => {})
         .putIfAbsent(change.id, () => {});
-    final current = fields[change.field];
-    if (current != null && !(change.hlc > current.hlc)) return false;
-    fields[change.field] = _Field(change.value, change.hlc);
+    final changed = _set(fields, change.field, change.value, change.hlc);
+    if (change.field == deletedField && change.value == true) {
+      _set(fields, purgedField, true, change.hlc);
+    }
+    return changed;
+  }
+
+  bool _set(Map<String, _Field> fields, String name, Object? value, Hlc hlc) {
+    final current = fields[name];
+    if (current != null && !(hlc > current.hlc)) return false;
+    if (name == purgedField) {
+      fields[purgedField] = _Field(value, hlc);
+      fields.removeWhere((n, f) => !_meta.contains(n) && !(f.hlc > hlc));
+      return true;
+    }
+    final purged = fields[purgedField];
+    if (!_meta.contains(name) && purged != null && !(hlc > purged.hlc)) {
+      return false;
+    }
+    fields[name] = _Field(value, hlc);
     return true;
+  }
+
+  static const _meta = {deletedField, purgedField};
+
+  /// Entfernt gelöschte Objekte samt Grabstein. Nur für Daten, die kein
+  /// anderes Gerät hat (lokale Gruppen): Dort kann nichts ein gelöschtes
+  /// Objekt wiederbeleben.
+  void dropTombstones() {
+    for (final objects in _objects.values) {
+      objects.removeWhere((_, f) => f[deletedField]?.value == true);
+    }
   }
 
   void applyAll(Iterable<Change> changes) => changes.forEach(apply);
@@ -76,7 +116,7 @@ class Replica {
     if (fields == null || fields[deletedField]?.value == true) return null;
     return {
       for (final e in fields.entries)
-        if (e.key != deletedField) e.key: e.value.value,
+        if (!_meta.contains(e.key)) e.key: e.value.value,
     };
   }
 
