@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:konsum/state/group_session.dart';
 import 'package:konsum/storage/store.dart';
@@ -138,5 +140,63 @@ void main() {
     final ids = s.group.replica.snapshot().map((c) => c.id).toSet();
     expect(ids, {list.id});
     await s.save();
+  });
+
+  test('Veraltetes Gerät belebt Gelöschtes nicht wieder', () async {
+    final hub = MemoryHub();
+    final storeB = MemoryStore();
+    GroupInfo info() =>
+        GroupInfo(id: 'g', name: 'Verein', backend: {'type': 'test'});
+    final a = GroupSession.create(info(), 'a', MemoryStore());
+    var b = GroupSession.create(info(), 'b', storeB);
+    await a.attach(hub.connect('alice'));
+    await b.attach(hub.connect('bob'));
+    a.apply(a.group.setRetentionMonths(1));
+    final x = a.group.createArticle('Buch');
+    a.apply(x.changes);
+    await Future<void>.delayed(Duration.zero);
+    hub.tick();
+    expect(b.group.article(x.id), isNotNull);
+
+    // B ist lange weg: zuletzt vor zwei Monaten synchronisiert.
+    await b.detach();
+    await b.save();
+    final json = jsonDecode(storeB.values['group-g']!) as Map<String, Object?>;
+    json['lastSync'] = DateTime.now()
+        .subtract(const Duration(days: 62))
+        .millisecondsSinceEpoch;
+    storeB.values['group-g'] = jsonEncode(json);
+    b = await GroupSession.load(info(), 'b', storeB);
+
+    // Offline auf B: neuer Artikel, Bearbeitung des (anderswo gelöschten) X.
+    final y = b.group.createArticle('Neu');
+    b.apply([
+      ...y.changes,
+      ...b.group.updateArticle(x.id, {'name': 'Buch 2'}),
+    ]);
+
+    // A löscht X; der Grabstein ist inzwischen verfallen.
+    a.apply(a.group.deleteArticle(x.id));
+    a.group.replica.dropTombstonesBefore(
+      DateTime.now().millisecondsSinceEpoch + 1,
+    );
+
+    final syncB = hub.connect('bob');
+    await b.attach(syncB);
+    await Future<void>.delayed(Duration.zero);
+
+    expect(syncB.snapshotRequests, 1, reason: 'B fragt nach dem Stand');
+    expect(b.status, isNot(SyncStatus.resyncing), reason: 'A hat geantwortet');
+    expect(b.group.article(x.id), isNull, reason: 'X bleibt gelöscht');
+    expect(b.group.article(y.id)?.name, 'Neu');
+    expect(a.group.article(y.id)?.name, 'Neu', reason: 'B schickt Neues');
+    expect(a.group.article(x.id), isNull, reason: 'keine Wiederbelebung');
+    expect(
+      a.group.replica.keys.contains((Types.article, x.id)),
+      isFalse,
+      reason: 'auch kein Rest von X bei A',
+    );
+    await a.save();
+    await b.save();
   });
 }

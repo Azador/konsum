@@ -162,6 +162,7 @@ class GroupDrawer extends StatelessWidget {
   static IconData _statusIcon(SyncStatus s) => switch (s) {
     SyncStatus.local => Icons.phone_android,
     SyncStatus.offline => Icons.cloud_off,
+    SyncStatus.resyncing => Icons.cloud_sync_outlined,
     SyncStatus.pending => Icons.cloud_upload_outlined,
     SyncStatus.synced => Icons.cloud_done_outlined,
   };

@@ -26,6 +26,10 @@ abstract interface class RoomTransport {
   /// (Lücke in der Timeline, z. B. nach langer Offline-Zeit).
   Stream<void> get gaps;
 
+  /// Meldet jeden Sync mit dem Server, bei dem für diesen Raum keine Lücke
+  /// entstanden ist: Bis dahin ist alles empfangen.
+  Stream<void> get synced;
+
   /// Verschickt ein Timeline-Ereignis. Wirft bei Fehlern.
   Future<void> send(String type, Map<String, Object?> content);
 

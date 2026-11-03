@@ -38,6 +38,7 @@ class FakeTransport implements RoomTransport {
   final String deviceId;
   final _events = StreamController<RoomEvent>.broadcast(sync: true);
   final gapController = StreamController<void>.broadcast(sync: true);
+  final syncedController = StreamController<void>.broadcast(sync: true);
   final _accountUpdates =
       StreamController<(String, Map<String, Object?>)>.broadcast(sync: true);
 
@@ -46,6 +47,9 @@ class FakeTransport implements RoomTransport {
 
   @override
   Stream<void> get gaps => gapController.stream;
+
+  @override
+  Stream<void> get synced => syncedController.stream;
 
   @override
   Future<void> send(String type, Map<String, Object?> content) async {
@@ -259,5 +263,64 @@ void main() {
     final after = requests();
     await Future<void>.delayed(const Duration(milliseconds: 1000));
     expect(requests(), after);
+  });
+
+  test('Schnappschuss in Teilen: vollständig erkannt', () async {
+    final room = FakeRoom();
+    final alice = Device(room, '@alice:x', 'A1', seed: 1);
+    await settle();
+    // Groß genug für mehrere Ereignisse.
+    await alice.run([
+      for (var i = 0; i < 400; i++)
+        ...alice.group.createArticle('Artikel mit langem Namen $i').changes,
+    ]);
+    final bob = Device(room, '@bob:x', 'B1', seed: 2);
+    await settle();
+    // Beim Beitritt kam schon einer; jetzt gezielt angefordert.
+    room.sent.clear();
+    final complete = <List<Change>>[];
+    bob.sync.completeSnapshots.listen(complete.add);
+
+    await bob.sync.requestSnapshot();
+    await settle();
+
+    final parts = room.sent.where(
+      (e) => e.content['snapshot'] == true && e.senderId == '@alice:x',
+    );
+    expect(parts.length, greaterThan(1));
+    expect(parts.map((e) => e.content['snapshotId']).toSet(), hasLength(1));
+    expect(complete, hasLength(1));
+    expect(complete.single.length, alice.group.replica.snapshot().length);
+  });
+
+  test('Veraltetes Gerät beantwortet keine Anfragen', () async {
+    final room = FakeRoom();
+    final alice = Device(room, '@alice:x', 'A1', seed: 1);
+    await settle();
+    await alice.run(alice.group.createList('Familie').changes);
+    alice.sync.answerSnapshots = false;
+    room.sent.clear();
+
+    Device(room, '@bob:x', 'B1', seed: 2);
+    await settle();
+    expect(room.sent.where((e) => e.content['snapshot'] == true), isEmpty);
+  });
+
+  test('Erwarteter Schnappschuss: Anfrage wird wiederholt', () async {
+    final room = FakeRoom();
+    final alice = Device(
+      room,
+      '@alice:x',
+      'A1',
+      retryDelay: const Duration(milliseconds: 30),
+    );
+    await alice.run(alice.group.createList('Familie').changes);
+    room.sent.clear();
+    await alice.sync.requestSnapshot();
+    await Future<void>.delayed(const Duration(milliseconds: 100));
+    final requests = room.sent.where(
+      (e) => e.type == KonsumEvents.snapshotRequest,
+    );
+    expect(requests.length, greaterThan(1), reason: 'trotz eigener Daten');
   });
 }

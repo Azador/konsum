@@ -12,6 +12,13 @@ class MemoryHub {
   /// Ist der Hub offline, schlägt jedes Senden fehl.
   bool online = true;
 
+  /// Meldet allen Verbundenen einen lückenlosen Sync.
+  void tick() {
+    for (final m in [..._members]) {
+      m._synced.add(null);
+    }
+  }
+
   MemorySync connect(String user) {
     final s = MemorySync._(this, user);
     _members.add(s);
@@ -26,6 +33,15 @@ class MemorySync implements GroupSync {
   final String _user;
   final _incoming = StreamController<List<Change>>.broadcast(sync: true);
   final _incomingPrivate = StreamController<List<Change>>.broadcast(sync: true);
+  final _synced = StreamController<void>.broadcast(sync: true);
+  final _completeSnapshots = StreamController<List<Change>>.broadcast(
+    sync: true,
+  );
+  List<Change> Function() _provider = () => const [];
+  bool _answer = true;
+
+  /// Ob [requestSnapshot] aufgerufen wurde (für Tests).
+  int snapshotRequests = 0;
 
   @override
   Stream<List<Change>> get incoming => _incoming.stream;
@@ -34,7 +50,32 @@ class MemorySync implements GroupSync {
   Stream<List<Change>> get incomingPrivate => _incomingPrivate.stream;
 
   @override
-  set snapshotProvider(List<Change> Function() provider) {}
+  set snapshotProvider(List<Change> Function() provider) =>
+      _provider = provider;
+
+  @override
+  set answerSnapshots(bool value) => _answer = value;
+
+  @override
+  Stream<void> get synced => _synced.stream;
+
+  @override
+  Stream<List<Change>> get completeSnapshots => _completeSnapshots.stream;
+
+  /// Das erste andere Gerät, das antworten darf, schickt seinen Stand.
+  @override
+  Future<void> requestSnapshot() async {
+    snapshotRequests++;
+    if (!_hub.online) return;
+    for (final m in _hub._members) {
+      if (m == this || !m._answer) continue;
+      final snapshot = m._provider();
+      if (snapshot.isEmpty) continue;
+      _incoming.add(snapshot);
+      _completeSnapshots.add(snapshot);
+      return;
+    }
+  }
 
   @override
   Future<void> send(List<Change> changes) async {
@@ -58,5 +99,7 @@ class MemorySync implements GroupSync {
     _hub._members.remove(this);
     await _incoming.close();
     await _incomingPrivate.close();
+    await _synced.close();
+    await _completeSnapshots.close();
   }
 }
