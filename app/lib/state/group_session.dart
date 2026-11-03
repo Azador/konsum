@@ -69,6 +69,7 @@ class GroupSession extends ChangeNotifier {
     session._privateDirty = json['privateDirty'] == true;
     // Ältere Versionen haben Grabsteine lokaler Gruppen behalten.
     if (info.backend == null) session.group.replica.dropTombstones();
+    session.group.expire(DateTime.now());
     // Beim Laden verworfener Inhalt (Grabsteine älterer Versionen) soll
     // nicht bis zur nächsten Änderung in der Datei stehen bleiben.
     await session.save();
@@ -205,6 +206,13 @@ class GroupSession extends ChangeNotifier {
       }
     }
     if (info.backend == null) group.replica.dropTombstones();
+    group.expire(DateTime.now());
+  }
+
+  /// Lässt Abgelaufenes verfallen (siehe [Group.expire]), z. B. wenn die App
+  /// lange offen bleibt.
+  void expire() {
+    if (group.expire(DateTime.now()) > 0) _changed();
   }
 
   void _changed() {

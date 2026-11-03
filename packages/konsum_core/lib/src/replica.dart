@@ -99,6 +99,25 @@ class Replica {
 
   static const _meta = {deletedField, purgedField};
 
+  /// Entfernt ein Objekt vollständig, ohne Grabstein und ohne Änderung, die
+  /// verschickt würde (Verfall, den jedes Gerät selbst vornimmt).
+  void drop(String type, String id) => _objects[type]?.remove(id);
+
+  /// Entfernt Grabsteine, die vor [millis] (Unix-Zeit in ms) gesetzt wurden.
+  /// Liefert die Anzahl.
+  int dropTombstonesBefore(int millis) {
+    var count = 0;
+    for (final objects in _objects.values) {
+      objects.removeWhere((_, f) {
+        final d = f[deletedField];
+        final old = d != null && d.value == true && d.hlc.millis < millis;
+        if (old) count++;
+        return old;
+      });
+    }
+    return count;
+  }
+
   /// Entfernt gelöschte Objekte samt Grabstein. Nur für Daten, die kein
   /// anderes Gerät hat (lokale Gruppen): Dort kann nichts ein gelöschtes
   /// Objekt wiederbeleben.

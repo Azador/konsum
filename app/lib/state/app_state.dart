@@ -221,9 +221,11 @@ class AppState extends ChangeNotifier {
     }
   }
 
-  /// Versucht bei allen Gruppen, Ausstehendes zu verschicken.
+  /// Versucht bei allen Gruppen, Ausstehendes zu verschicken, und lässt
+  /// Abgelaufenes verfallen.
   Future<void> flushAll() async {
     for (final g in _groups) {
+      g.expire();
       await g.flush();
     }
   }

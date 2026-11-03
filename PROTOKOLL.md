@@ -361,6 +361,7 @@ einem Artikel.
 | `shopId` | ID \| null | |
 
 Grundlage für Vorschläge (häufig gekaufte Artikel zuerst).
+Käufe verfallen nach der Aufbewahrungsfrist (siehe `settings`).
 
 ### `price` – Preishistorie (nur anlegen oder löschen)
 
@@ -371,6 +372,21 @@ Grundlage für Vorschläge (häufig gekaufte Artikel zuerst).
 | `quantity`, `unit`, `packSize`, `packUnit` | wie bei `entry` | |
 | `shopId` | ID \| null | |
 | `millis` | Ganzzahl | Zeitpunkt |
+
+### `settings` – Einstellungen der Gruppe
+
+Ein einziges Objekt mit der ID `group`.
+
+| Feld | Typ | |
+|---|---|---|
+| `retentionMonths` | Ganzzahl \| null | Aufbewahrungsfrist in Monaten; `0` = ohne automatisches Löschen; fehlt der Wert, gelten **6** |
+
+**Verfall:** Jedes Gerät entfernt selbstständig `purchase`-Objekte, deren
+`millis` älter ist als die Frist, und Tombstones, deren `_deleted`-Zeitstempel
+älter ist – vollständig, ohne Tombstone und ohne etwas zu verschicken.
+Verfallenes gehört in keinen Schnappschuss; trifft es (von einem Gerät, das
+noch nicht aufgeräumt hat) erneut ein, wird es beim nächsten Verfall wieder
+entfernt. Die Frist wird kalendarisch berechnet (heute minus N Monate).
 
 ### Einheiten
 

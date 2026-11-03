@@ -25,6 +25,47 @@ class Group {
     }
   }
 
+  // ----------------------------------------------------------- Aufbewahrung
+
+  /// Vorgabe für [retentionMonths].
+  static const defaultRetentionMonths = 6;
+
+  static const _settingsId = 'group';
+
+  /// Wie viele Monate Käufe und Grabsteine aufbewahrt werden; 0 = ohne
+  /// automatisches Löschen. Gilt für alle Geräte der Gruppe.
+  int get retentionMonths =>
+      (replica.get(Types.settings, _settingsId)?['retentionMonths'] as num?)
+          ?.toInt() ??
+      defaultRetentionMonths;
+
+  List<Change> setRetentionMonths(int months) =>
+      _write(Types.settings, _settingsId, {'retentionMonths': months});
+
+  /// Lässt Käufe und Grabsteine verfallen, die älter sind als
+  /// [retentionMonths]. Jedes Gerät tut das selbst und verschickt nichts;
+  /// weil alle nach demselben Datum entscheiden, kommen sie zum selben Stand.
+  /// Liefert die Anzahl entfernter Objekte.
+  int expire(DateTime now) {
+    final months = retentionMonths;
+    if (months <= 0) return 0;
+    final cutoff = DateTime(
+      now.year,
+      now.month - months,
+      now.day,
+      now.hour,
+      now.minute,
+    ).millisecondsSinceEpoch;
+    var count = 0;
+    for (final p in purchases) {
+      if (p.millis < cutoff) {
+        replica.drop(Types.purchase, p.id);
+        count++;
+      }
+    }
+    return count + replica.dropTombstonesBefore(cutoff);
+  }
+
   // ---------------------------------------------------------------- Abfragen
 
   Article? article(String id) => _article(id, replica.get(Types.article, id));

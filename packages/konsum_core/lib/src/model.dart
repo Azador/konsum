@@ -10,6 +10,9 @@ abstract final class Types {
   static const entry = 'entry';
   static const purchase = 'purchase';
   static const price = 'price';
+
+  /// Einstellungen der Gruppe; ein einziges Objekt mit der ID `group`.
+  static const settings = 'settings';
 }
 
 /// Mengeneinheiten. Die Codes werden gespeichert, die Anzeigenamen liefert die App.

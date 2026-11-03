@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../state/group_session.dart';
 import 'account_page.dart';
 import 'color_scheme_dialog.dart';
+import 'retention_dialog.dart';
 import 'dialogs.dart';
 import 'scope.dart';
 import 'theme.dart';
@@ -62,6 +63,23 @@ class GroupPage extends StatelessWidget {
               onTap: () async {
                 final picked = await pickSeed(context, color);
                 if (picked != null) app.setColor(session, picked.$1);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.auto_delete_outlined),
+              title: const Text('Aufbewahrung'),
+              subtitle: Text(
+                '${retentionLabel(group.retentionMonths)} · danach werden '
+                'Käufe und Spuren gelöschter Einträge entfernt',
+              ),
+              onTap: () async {
+                final months = await pickRetention(
+                  context,
+                  group.retentionMonths,
+                );
+                if (months != null) {
+                  session.apply(group.setRetentionMonths(months));
+                }
               },
             ),
             ListTile(
