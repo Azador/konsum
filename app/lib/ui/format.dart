@@ -49,7 +49,7 @@ String? formatAmount({
 }) {
   if (quantity == null) return null;
   final text = formatQuantity(quantity, unit ?? Units.pack);
-  if (Units.isCount(unit) && packSize != null && Units.isMeasure(packUnit)) {
+  if (packSize != null && Units.isPackUnitFor(packUnit, unit ?? Units.pack)) {
     return '$text à ${formatQuantity(packSize, packUnit)}';
   }
   return text;
@@ -61,13 +61,19 @@ String formatCents(int cents) => _money.format(cents / 100);
 String formatBasePrice(num cents, String baseUnit) =>
     '${_money.format(cents / 100)}/${unitLabel(baseUnit)}';
 
-/// Liest eine Packungsgröße wie „500 g“, „1,5 l“ oder „0.75L“; nur Gewicht
-/// und Volumen. Null, wenn nichts Passendes darin steht.
+/// Liest eine Packungsgröße wie „500 g“, „1,5 l“, „0.75L“ oder „6 Stück“.
+/// Gewicht und Volumen gehen vor („6 Stück à 60 g“ → 60 g). Null, wenn
+/// nichts Passendes darin steht.
 ({num size, String unit})? parseAmount(String text) {
-  final m = RegExp(
-    r'(\d+(?:[.,]\d+)?)\s*(kg|kilo|g|gr|gramm|ml|l|ltr|liter)\b',
-    caseSensitive: false,
-  ).firstMatch(text);
+  final m =
+      RegExp(
+        r'(\d+(?:[.,]\d+)?)\s*(kg|kilo|g|gr|gramm|ml|l|ltr|liter)\b',
+        caseSensitive: false,
+      ).firstMatch(text) ??
+      RegExp(
+        r'(\d+(?:[.,]\d+)?)\s*(stück|stueck|stk|st)(?![\wäöüß])',
+        caseSensitive: false,
+      ).firstMatch(text);
   if (m == null) return null;
   final size = parseNumber(m.group(1)!);
   if (size == null || size == 0) return null;
@@ -75,6 +81,7 @@ String formatBasePrice(num cents, String baseUnit) =>
     'kilo' => Units.kilogram,
     'gr' || 'gramm' => Units.gram,
     'ltr' || 'liter' => Units.litre,
+    'stück' || 'stueck' || 'stk' || 'st' => Units.piece,
     final u => u,
   };
   return (size: size, unit: unit);

@@ -9,7 +9,8 @@ typedef BaseAmount = ({num amount, String unit});
 /// - Gewicht und Volumen: g → kg, ml → l. Ohne Menge: null.
 /// - Zähleinheiten (Stück, Packung, …; ohne Einheit gilt Packung): mit
 ///   Packungsgröße in g/kg/ml/l wird über das Gewicht bzw. Volumen
-///   gerechnet, sonst in der Zähleinheit. Ohne Menge gilt 1.
+///   gerechnet, mit Packungsgröße in Stück über die Stückzahl, sonst in der
+///   Zähleinheit. Ohne Menge gilt 1.
 BaseAmount? baseAmount({
   num? quantity,
   String? unit,
@@ -26,9 +27,11 @@ BaseAmount? baseAmount({
     };
   }
   final count = quantity ?? 1;
-  if (packSize != null && packSize > 0 && Units.isMeasure(packUnit)) {
-    final pack = baseAmount(quantity: packSize, unit: packUnit);
-    if (pack != null) return (amount: count * pack.amount, unit: pack.unit);
+  if (packSize != null && packSize > 0 && Units.isPackUnitFor(packUnit, u)) {
+    final pack = Units.isMeasure(packUnit)
+        ? baseAmount(quantity: packSize, unit: packUnit)!
+        : (amount: packSize, unit: Units.piece);
+    return (amount: count * pack.amount, unit: pack.unit);
   }
   return (amount: count, unit: u);
 }
