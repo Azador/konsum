@@ -57,6 +57,9 @@ class AppState extends ChangeNotifier {
       (json['shops'] as Map? ?? const {}).cast<String, String>(),
     );
     state._showChecked = json['showChecked'] as bool? ?? true;
+    state._colors.addAll(
+      (json['colors'] as Map? ?? const {}).cast<String, int>(),
+    );
 
     if (state.groups.isEmpty) {
       final s = await state.createGroup('Zuhause');
@@ -74,6 +77,7 @@ class AppState extends ChangeNotifier {
 
   final _groups = <GroupSession>[];
   final _shops = <String, String>{};
+  final _colors = <String, int>{};
   String? _groupId;
   String? _listId;
   bool _showChecked = true;
@@ -91,6 +95,19 @@ class AppState extends ChangeNotifier {
   String? shopFor(GroupSession g) {
     final id = _shops[g.id];
     return id != null && g.group.shop(id) != null ? id : null;
+  }
+
+  /// Farbschema einer Gruppe als ARGB-Wert, `null` für den Standard. Gilt
+  /// nur auf diesem Gerät.
+  int? colorFor(GroupSession g) => _colors[g.id];
+
+  void setColor(GroupSession g, int? argb) {
+    if (argb == null) {
+      _colors.remove(g.id);
+    } else {
+      _colors[g.id] = argb;
+    }
+    _changed();
   }
 
   void selectList(GroupSession g, String listId) {
@@ -163,6 +180,7 @@ class AppState extends ChangeNotifier {
     await g.deleteLocal();
     g.dispose();
     _shops.remove(g.id);
+    _colors.remove(g.id);
     _ensureSelection();
     _changed();
   }
@@ -235,6 +253,7 @@ class AppState extends ChangeNotifier {
       'listId': _listId,
       'shops': _shops,
       'showChecked': _showChecked,
+      'colors': _colors,
     }),
   );
 

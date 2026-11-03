@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 
 import '../state/group_session.dart';
 import 'account_page.dart';
+import 'color_scheme_dialog.dart';
 import 'dialogs.dart';
 import 'scope.dart';
+import 'theme.dart';
 
 /// Einstellungen einer Gruppe.
 class GroupPage extends StatelessWidget {
@@ -15,80 +17,97 @@ class GroupPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final app = AppScope.of(context);
     final group = session.group;
+    final color = app.colorFor(session);
     final status = switch (session.status) {
       SyncStatus.local => 'Nur auf diesem Gerät',
       SyncStatus.offline => 'Offline – Änderungen werden später übertragen',
       SyncStatus.pending => 'Wird synchronisiert …',
       SyncStatus.synced => 'Synchronisiert',
     };
-    return Scaffold(
-      appBar: AppBar(title: Text(session.info.name)),
-      body: ListView(
-        children: [
-          ListTile(
-            leading: const Icon(Icons.edit_outlined),
-            title: const Text('Name'),
-            subtitle: Text(session.info.name),
-            onTap: () async {
-              final name = await promptText(
-                context,
-                title: 'Gruppe umbenennen',
-                initial: session.info.name,
-              );
-              if (name == null || !context.mounted) return;
-              final matrix = MatrixScope.maybeOf(context);
-              if (matrix == null || !matrix.isShared(session)) {
-                app.renameGroup(session, name);
-              } else if (!await matrix.rename(session, name)) {
-                app.status.show(
-                  'Umbenennen fehlgeschlagen: ${matrix.error ?? 'offline?'}',
+    // In der Farbe dieser Gruppe, auch wenn gerade eine andere gewählt ist.
+    return Theme(
+      data: buildTheme(
+        color == null ? null : Color(color),
+        Theme.of(context).brightness,
+      ),
+      child: Scaffold(
+        appBar: AppBar(title: Text(session.info.name)),
+        body: ListView(
+          children: [
+            ListTile(
+              leading: const Icon(Icons.edit_outlined),
+              title: const Text('Name'),
+              subtitle: Text(session.info.name),
+              onTap: () async {
+                final name = await promptText(
+                  context,
+                  title: 'Gruppe umbenennen',
+                  initial: session.info.name,
                 );
-              }
-            },
-          ),
-          ListTile(
-            leading: const Icon(Icons.sync),
-            title: const Text('Synchronisation'),
-            subtitle: Text(status),
-          ),
-          _MatrixSection(session: session),
-          const Divider(),
-          ListTile(
-            leading: const Icon(Icons.price_change_outlined),
-            title: const Text('Gesamte Preishistorie löschen'),
-            subtitle: Text('${group.priceHistory().length} Einträge'),
-            onTap: () async {
-              if (await confirm(
-                context,
-                title: 'Gesamte Preishistorie löschen?',
-                message:
-                    'Alle gespeicherten Preise der Gruppe werden für '
-                    'alle Mitglieder gelöscht.',
-              )) {
-                session.apply(group.deletePriceHistory());
-              }
-            },
-          ),
-          ListTile(
-            leading: const Icon(Icons.logout),
-            title: const Text('Gruppe von diesem Gerät entfernen'),
-            onTap: () async {
-              if (await confirm(
-                context,
-                title: '„${session.info.name}“ entfernen?',
-                message: session.info.backend == null
-                    ? 'Die Gruppe existiert nur auf diesem Gerät, ihre Daten '
-                          'gehen verloren.'
-                    : 'Die lokalen Daten werden gelöscht. Die Gruppe bleibt '
-                          'für die anderen Mitglieder erhalten.',
-                action: 'Entfernen',
-              )) {
-                await app.removeGroup(session);
-                if (context.mounted) Navigator.pop(context);
-              }
-            },
-          ),
-        ],
+                if (name == null || !context.mounted) return;
+                final matrix = MatrixScope.maybeOf(context);
+                if (matrix == null || !matrix.isShared(session)) {
+                  app.renameGroup(session, name);
+                } else if (!await matrix.rename(session, name)) {
+                  app.status.show(
+                    'Umbenennen fehlgeschlagen: ${matrix.error ?? 'offline?'}',
+                  );
+                }
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.palette_outlined),
+              title: const Text('Farbschema'),
+              subtitle: Text('${seedName(color)} · nur auf diesem Gerät'),
+              onTap: () async {
+                final picked = await pickSeed(context, color);
+                if (picked != null) app.setColor(session, picked.$1);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.sync),
+              title: const Text('Synchronisation'),
+              subtitle: Text(status),
+            ),
+            _MatrixSection(session: session),
+            const Divider(),
+            ListTile(
+              leading: const Icon(Icons.price_change_outlined),
+              title: const Text('Gesamte Preishistorie löschen'),
+              subtitle: Text('${group.priceHistory().length} Einträge'),
+              onTap: () async {
+                if (await confirm(
+                  context,
+                  title: 'Gesamte Preishistorie löschen?',
+                  message:
+                      'Alle gespeicherten Preise der Gruppe werden für '
+                      'alle Mitglieder gelöscht.',
+                )) {
+                  session.apply(group.deletePriceHistory());
+                }
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.logout),
+              title: const Text('Gruppe von diesem Gerät entfernen'),
+              onTap: () async {
+                if (await confirm(
+                  context,
+                  title: '„${session.info.name}“ entfernen?',
+                  message: session.info.backend == null
+                      ? 'Die Gruppe existiert nur auf diesem Gerät, ihre Daten '
+                            'gehen verloren.'
+                      : 'Die lokalen Daten werden gelöscht. Die Gruppe bleibt '
+                            'für die anderen Mitglieder erhalten.',
+                  action: 'Entfernen',
+                )) {
+                  await app.removeGroup(session);
+                  if (context.mounted) Navigator.pop(context);
+                }
+              },
+            ),
+          ],
+        ),
       ),
     );
   }
