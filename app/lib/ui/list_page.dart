@@ -207,7 +207,10 @@ class _ListPageState extends State<ListPage> {
                     left: 0,
                     right: 0,
                     bottom: 0,
-                    child: _suggestions(),
+                    // Auf dem Desktop nimmt ein Mausklick außerhalb dem Feld
+                    // den Fokus – und damit die Vorschläge, bevor der Klick
+                    // ankommt. So gelten sie als Teil des Felds.
+                    child: TextFieldTapRegion(child: _suggestions()),
                   ),
               ],
             ),

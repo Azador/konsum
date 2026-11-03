@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:intl/date_symbol_data_local.dart';
@@ -70,4 +71,29 @@ void main() {
     expect(chip, findsNothing);
     await finish(tester);
   });
+
+  testWidgets('Desktop: Vorschlag lässt sich mit der Maus anklicken', (
+    tester,
+  ) async {
+    final state = await start(tester);
+    final session = state.currentGroup!;
+    final listId = state.currentListId!;
+    session.apply(session.group.createArticle('Mehl').changes);
+    await tester.pump();
+
+    await tester.tap(find.byType(TextField), kind: PointerDeviceKind.mouse);
+    await tester.pump();
+    // Wie ein echter Klick: zwischen Drücken und Loslassen wird gezeichnet.
+    final click = await tester.startGesture(
+      tester.getCenter(find.widgetWithText(ActionChip, 'Mehl')),
+      kind: PointerDeviceKind.mouse,
+    );
+    await tester.pump(const Duration(milliseconds: 100));
+    await click.up();
+    await tester.pump();
+    expect(session.group.entries(listId).map((e) => e.articleId), [
+      session.group.articles.single.id,
+    ]);
+    await finish(tester);
+  }, variant: TargetPlatformVariant.desktop());
 }
