@@ -140,22 +140,42 @@ class ShopPage extends StatelessWidget {
           const Padding(
             padding: EdgeInsets.all(16),
             child: Text(
-              'Reihenfolge der Kategorien im Laden. Zum Verschieben ziehen.',
+              'Reihenfolge der Kategorien im Laden. Zum Verschieben am Griff '
+              'ziehen oder die Zeile kurz halten.',
             ),
           ),
           Expanded(
             child: ReorderableListView(
+              // Ganze Zeile: nach kurzem Halten ziehen (sonst wird gescrollt).
+              // Griff am Zeilenanfang: sofort ziehen.
+              buildDefaultDragHandles: false,
               onReorderItem: (from, to) {
                 final next = [...order];
                 next.insert(to, next.removeAt(from));
                 session.apply(group.updateShop(shopId, categoryOrder: next));
               },
               children: [
-                for (final id in order)
-                  ListTile(
+                for (final (i, id) in order.indexed)
+                  ReorderableDelayedDragStartListener(
                     key: ValueKey(id),
-                    leading: const Icon(Icons.drag_indicator),
-                    title: Text(names[id] ?? ''),
+                    index: i,
+                    child: ListTile(
+                      contentPadding: const EdgeInsets.only(right: 16),
+                      leading: ReorderableDragStartListener(
+                        index: i,
+                        // Transparente Fläche, damit die ganze Griffbreite
+                        // reagiert und nicht nur das Symbol.
+                        child: const ColoredBox(
+                          color: Colors.transparent,
+                          child: SizedBox(
+                            width: 56,
+                            height: 48,
+                            child: Icon(Icons.drag_indicator),
+                          ),
+                        ),
+                      ),
+                      title: Text(names[id] ?? ''),
+                    ),
                   ),
               ],
             ),
