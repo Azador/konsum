@@ -252,6 +252,11 @@ Mitglieder, Raumzustand und Sync-Position.
   verwirft Räume, Ereignisse und Sync-Position (erzwingt einen vollständigen
   Sync, behält Anmeldung und Schlüssel). Zu beachten: Der Raum merkt sich
   zusätzlich sein letztes Ereignis (`lastEvent`) mit Inhalt.
+- Das SDK synchronisiert **alle** Räume des Kontos und speichert auch deren
+  Nachrichten entschlüsselt, z. B. Chats aus Element. Umgesetzt
+  (2026-11-03): Beim Start werden alle gespeicherten Timeline-Ereignisse
+  gelöscht und die Datei mit `VACUUM` neu geschrieben; im Betrieb wird jedes
+  Ereignis nach dem Eintreffen entfernt (`removeEvent`). Im Web nur Letzteres.
 - Die Datenbank gehört nur zu Matrix (Anmeldung, Schlüssel, Räume aller
   Matrix-Gruppen in **einer** Datei `konsum_matrix.sqlite`); Konsums eigene
   Daten liegen getrennt je Gruppe in `data/group-<id>.json`.
