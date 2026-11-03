@@ -20,6 +20,11 @@ import 'transport.dart';
 ///   [maxRetryDelay]), bis Daten kommen.
 /// - Hat der Server nach langer Offline-Zeit nicht alle Ereignisse geliefert
 ///   (Lücke), fragt das Gerät ebenfalls nach dem vollständigen Stand.
+/// - Schnappschüsse sind nummeriert (`snapshotId`, `part`, `parts`), damit
+///   ein Gerät erkennt, wann es einen vollständigen Stand hat
+///   ([completeSnapshots]). Ein veraltetes Gerät fragt mit
+///   [requestSnapshot] so lange, bis einer da ist, und verschickt selbst
+///   keine ([answerSnapshots]).
 /// - Private Daten liegen in der Room Account Data des Benutzers.
 class MatrixGroupSync implements GroupSync {
   MatrixGroupSync(
@@ -32,6 +37,7 @@ class MatrixGroupSync implements GroupSync {
     _subscriptions
       ..add(_transport.events.listen(_onEvent))
       ..add(_transport.gaps.listen((_) => _requestSnapshot()))
+      ..add(_transport.synced.listen(_synced.add))
       ..add(
         _transport.accountDataUpdates.listen((update) {
           if (update.$1 == KonsumEvents.private) {
@@ -49,7 +55,16 @@ class MatrixGroupSync implements GroupSync {
   final _subscriptions = <StreamSubscription<Object?>>[];
   final _incoming = StreamController<List<Change>>.broadcast();
   final _incomingPrivate = StreamController<List<Change>>.broadcast();
+  final _synced = StreamController<void>.broadcast();
+  final _complete = StreamController<List<Change>>.broadcast();
   List<Change> Function() _snapshot = () => const [];
+
+  /// Eingegangene Teile unvollständiger Schnappschüsse, nach `snapshotId`.
+  final _parts = <String, ({int parts, Map<int, List<Change>> got})>{};
+
+  /// Ob ein vollständiger Schnappschuss erwartet wird ([requestSnapshot]).
+  bool _wantComplete = false;
+  bool _answer = true;
   Timer? _replyTimer;
   Timer? _retryTimer;
   bool _started = false;
@@ -59,6 +74,25 @@ class MatrixGroupSync implements GroupSync {
 
   @override
   Stream<List<Change>> get incomingPrivate => _incomingPrivate.stream;
+
+  @override
+  Stream<void> get synced => _synced.stream;
+
+  @override
+  Stream<List<Change>> get completeSnapshots => _complete.stream;
+
+  @override
+  set answerSnapshots(bool value) {
+    _answer = value;
+    if (!value) _cancelReply();
+  }
+
+  @override
+  Future<void> requestSnapshot() async {
+    _wantComplete = true;
+    await _requestSnapshot();
+    _scheduleRetry(retryDelay);
+  }
 
   @override
   set snapshotProvider(List<Change> Function() provider) {
@@ -80,12 +114,13 @@ class MatrixGroupSync implements GroupSync {
     }
   }
 
-  /// Fragt erneut, solange der lokale Stand leer ist.
+  /// Fragt erneut, solange der lokale Stand leer ist bzw. ein vollständiger
+  /// Schnappschuss erwartet wird.
   void _scheduleRetry(Duration delay) {
     _retryTimer?.cancel();
     _retryTimer = Timer(delay, () async {
       _retryTimer = null;
-      if (_snapshot().isNotEmpty) return;
+      if (!_wantComplete && _snapshot().isNotEmpty) return;
       await _requestSnapshot();
       final next = delay * 2;
       _scheduleRetry(next > maxRetryDelay ? maxRetryDelay : next);
@@ -114,7 +149,10 @@ class MatrixGroupSync implements GroupSync {
         if (_isOwnDevice(e)) return;
         final changes = decodeChanges(e.content);
         if (changes.isNotEmpty) _incoming.add(changes);
-        if (e.content['snapshot'] == true) _cancelReply();
+        if (e.content['snapshot'] == true) {
+          _cancelReply();
+          _collect(e.content, changes);
+        }
       case KonsumEvents.snapshotRequest:
         if (!_isOwnDevice(e)) _scheduleReply();
       case 'm.room.member':
@@ -126,15 +164,36 @@ class MatrixGroupSync implements GroupSync {
     }
   }
 
+  /// Sammelt die Teile eines nummerierten Schnappschusses; ist er
+  /// vollständig, geht er an [completeSnapshots].
+  void _collect(Map<String, Object?> content, List<Change> changes) {
+    final id = content['snapshotId'];
+    final part = content['part'];
+    final parts = content['parts'];
+    if (id is! String || part is! int || parts is! int) return;
+    if (part < 0 || part >= parts) return;
+    final entry = _parts.putIfAbsent(id, () => (parts: parts, got: {}));
+    if (entry.parts != parts) return;
+    entry.got[part] = changes;
+    if (entry.got.length < parts) return;
+    _parts.remove(id);
+    _complete.add([for (var i = 0; i < parts; i++) ...entry.got[i]!]);
+    if (_wantComplete) {
+      _wantComplete = false;
+      _retryTimer?.cancel();
+      _retryTimer = null;
+    }
+  }
+
   void _scheduleReply() {
-    if (_replyTimer != null) return;
+    if (_replyTimer != null || !_answer) return;
     final delay = Duration(
       milliseconds: _random.nextInt(maxReplyDelay.inMilliseconds + 1),
     );
     _replyTimer = Timer(delay, () async {
       _replyTimer = null;
       final snapshot = _snapshot();
-      if (snapshot.isEmpty) return;
+      if (snapshot.isEmpty || !_answer) return;
       try {
         await _sendChunks(snapshot, snapshot: true);
       } catch (_) {
@@ -157,10 +216,16 @@ class MatrixGroupSync implements GroupSync {
       changes,
       device: _transport.deviceId,
       snapshot: snapshot,
+      snapshotId: snapshot ? _newSnapshotId() : null,
     )) {
       await _transport.send(KonsumEvents.changes, content);
     }
   }
+
+  String _newSnapshotId() => [
+    for (var i = 0; i < 8; i++)
+      _random.nextInt(256).toRadixString(16).padLeft(2, '0'),
+  ].join();
 
   @override
   Future<void> send(List<Change> changes) => _sendChunks(changes);
@@ -190,5 +255,7 @@ class MatrixGroupSync implements GroupSync {
     await _transport.close();
     await _incoming.close();
     await _incomingPrivate.close();
+    await _synced.close();
+    await _complete.close();
   }
 }

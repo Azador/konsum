@@ -99,6 +99,12 @@ class Replica {
 
   static const _meta = {deletedField, purgedField};
 
+  /// Alle Objekte als (Typ, ID), auch Grabsteine.
+  Set<(String, String)> get keys => {
+    for (final t in _objects.entries)
+      for (final id in t.value.keys) (t.key, id),
+  };
+
   /// Entfernt ein Objekt vollständig, ohne Grabstein und ohne Änderung, die
   /// verschickt würde (Verfall, den jedes Gerät selbst vornimmt).
   void drop(String type, String id) => _objects[type]?.remove(id);

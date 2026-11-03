@@ -310,7 +310,9 @@ Mitglieder, Raumzustand und Sync-Position.
   Schnappschuss wiederbeleben. Vorschlag: Ein solches Gerät verschickt nichts
   aus seinem alten Stand, sondern holt einen frischen Schnappschuss und
   verwirft eigene Objekte, die dort fehlen und älter als die Frist sind.
-  Das braucht eine Ergänzung in PROTOKOLL.md.
+  Umgesetzt (2026-11-03, siehe PROTOKOLL.md „Veraltetes Gerät“):
+  nummerierte Schnappschüsse; das Gerät verschickt nichts, bis ein
+  vollständiger da ist, und verwirft dann, was es dort nicht mehr gibt.
 
 ## Entscheidungen
 

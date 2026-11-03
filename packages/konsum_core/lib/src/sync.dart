@@ -26,6 +26,23 @@ abstract interface class GroupSync {
   /// verschickt das Ergebnis.
   set snapshotProvider(List<Change> Function() provider);
 
+  /// Meldet, dass das Gerät alle Ereignisse bis jetzt lückenlos empfangen hat
+  /// (z. B. nach jedem Sync mit dem Server ohne Lücke).
+  Stream<void> get synced;
+
+  /// Vollständige Schnappschüsse anderer Geräte (alle Teile beisammen). Die
+  /// Änderungen kommen zusätzlich wie gewohnt über [incoming].
+  Stream<List<Change>> get completeSnapshots;
+
+  /// Bittet die anderen Geräte um ihren vollständigen Stand und fragt in
+  /// wachsenden Abständen erneut, bis ein vollständiger Schnappschuss kommt.
+  Future<void> requestSnapshot();
+
+  /// Ob dieses Gerät Schnappschüsse verschickt. Ein veraltetes Gerät darf das
+  /// nicht, sonst belebte es Gelöschtes wieder, dessen Grabsteine anderswo
+  /// schon verfallen sind.
+  set answerSnapshots(bool value);
+
   Future<void> close();
 }
 
@@ -41,6 +58,9 @@ class Outbox {
   bool get isEmpty => _pending.isEmpty;
 
   void add(Iterable<Change> changes) => _pending.addAll(changes);
+
+  /// Behält nur die ausstehenden Änderungen, für die [test] zutrifft.
+  void retainWhere(bool Function(Change) test) => _pending.retainWhere(test);
 
   /// Verwirft alles Ausstehende, z. B. wenn die Gruppe nicht mehr geteilt ist.
   void clear() => _pending.clear();

@@ -24,10 +24,15 @@ abstract final class KonsumEvents {
 }
 
 /// Teilt Änderungen in Ereignis-Inhalte auf, die unter der Größengrenze bleiben.
+///
+/// Mit [snapshotId] (nur bei [snapshot]) bekommt jeder Teil `snapshotId`,
+/// `part` (ab 0) und `parts`, damit Empfänger erkennen, wann der
+/// Schnappschuss vollständig ist.
 List<Map<String, Object?>> encodeChanges(
   List<Change> changes, {
   required String device,
   bool snapshot = false,
+  String? snapshotId,
   int maxBytes = KonsumEvents.maxChunkBytes,
 }) {
   final result = <Map<String, Object?>>[];
@@ -53,6 +58,14 @@ List<Map<String, Object?>> encodeChanges(
     size += bytes;
   }
   flush();
+  if (snapshot && snapshotId != null) {
+    for (final (i, content) in result.indexed) {
+      content
+        ..['snapshotId'] = snapshotId
+        ..['part'] = i
+        ..['parts'] = result.length;
+    }
+  }
   return result;
 }
 

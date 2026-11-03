@@ -22,6 +22,10 @@ class GroupPage extends StatelessWidget {
     final status = switch (session.status) {
       SyncStatus.local => 'Nur auf diesem Gerät',
       SyncStatus.offline => 'Offline – Änderungen werden später übertragen',
+      SyncStatus.resyncing =>
+        'Länger nicht verbunden als die Aufbewahrungsfrist – wartet auf den '
+            'aktuellen Stand eines anderen Geräts der Gruppe; bis dahin wird '
+            'nichts übertragen',
       SyncStatus.pending => 'Wird synchronisiert …',
       SyncStatus.synced => 'Synchronisiert',
     };

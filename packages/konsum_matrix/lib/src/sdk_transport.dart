@@ -46,6 +46,11 @@ class SdkRoomTransport implements RoomTransport {
   @override
   Stream<void> get gaps => _gaps.stream;
 
+  @override
+  Stream<void> get synced => client.onSync.stream
+      .where((sync) => sync.rooms?.join?[roomId]?.timeline?.limited != true)
+      .map((_) {});
+
   void _start() {
     _subs
       ..add(

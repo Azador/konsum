@@ -26,7 +26,16 @@ class GroupInfo {
   );
 }
 
-enum SyncStatus { local, offline, pending, synced }
+enum SyncStatus {
+  local,
+  offline,
+
+  /// War länger getrennt als die Aufbewahrungsfrist und wartet auf den
+  /// aktuellen Stand der Gruppe; verschickt bis dahin nichts.
+  resyncing,
+  pending,
+  synced,
+}
 
 /// Eine Gruppe auf diesem Gerät: Daten, private Daten, ausstehende Änderungen
 /// und (optional) die Verbindung zum Sync-Dienst. Speichert sich selbst.
@@ -67,6 +76,8 @@ class GroupSession extends ChangeNotifier {
     session.private.receive(_changes(json['private']));
     session.outbox.add(_changes(json['outbox']));
     session._privateDirty = json['privateDirty'] == true;
+    session._lastSync = (json['lastSync'] as num?)?.toInt();
+    session._resyncing = json['resyncing'] == true;
     // Ältere Versionen haben Grabsteine lokaler Gruppen behalten.
     if (info.backend == null) session.group.replica.dropTombstones();
     session.group.expire(DateTime.now());
@@ -93,6 +104,15 @@ class GroupSession extends ChangeNotifier {
   GroupSync? _sync;
   final _subscriptions = <StreamSubscription<Object?>>[];
   bool _lastFlushFailed = false;
+
+  /// Zeitpunkt (ms) des letzten lückenlosen Syncs mit dem Raum.
+  int? _lastSync;
+
+  /// Wartet auf einen vollständigen Schnappschuss, siehe [_startResync].
+  bool _resyncing = false;
+
+  /// Objekte, die während des Wartens geändert wurden.
+  final _touched = <(String, String)>{};
   Timer? _saveTimer;
 
   String get id => info.id;
@@ -101,6 +121,7 @@ class GroupSession extends ChangeNotifier {
   SyncStatus get status {
     if (info.backend == null) return SyncStatus.local;
     if (_sync == null || _lastFlushFailed) return SyncStatus.offline;
+    if (_resyncing) return SyncStatus.resyncing;
     if (!outbox.isEmpty || _privateDirty) return SyncStatus.pending;
     return SyncStatus.synced;
   }
@@ -151,6 +172,7 @@ class GroupSession extends ChangeNotifier {
       ..add(
         sync.incoming.listen((changes) {
           group.receive(changes);
+          if (_resyncing) _touched.addAll(changes.map((c) => (c.type, c.id)));
           _cleanUp(changes);
           _changed();
         }),
@@ -160,7 +182,10 @@ class GroupSession extends ChangeNotifier {
           private.receive(changes);
           _changed();
         }),
-      );
+      )
+      ..add(sync.synced.listen((_) => _onSynced()))
+      ..add(sync.completeSnapshots.listen(_onCompleteSnapshot));
+    if (_resyncing || _isStale) _startResync();
     await flush();
   }
 
@@ -178,7 +203,8 @@ class GroupSession extends ChangeNotifier {
   Future<void> flush() async {
     final sync = _sync;
     if (sync == null) return;
-    var ok = await outbox.flush(sync.send);
+    // Veraltet: Nichts verschicken, bis der aktuelle Stand da ist.
+    var ok = _resyncing || await outbox.flush(sync.send);
     if (_privateDirty) {
       try {
         await sync.savePrivate(private.replica.snapshot());
@@ -215,6 +241,70 @@ class GroupSession extends ChangeNotifier {
     if (group.expire(DateTime.now()) > 0) _changed();
   }
 
+  /// Ob dieses Gerät länger nicht lückenlos synchronisiert hat als die
+  /// Aufbewahrungsfrist. Dann kann es Grabsteine verpasst haben, die anderswo
+  /// schon verfallen sind; sein Stand würde Gelöschtes wiederbeleben.
+  bool get _isStale {
+    final last = _lastSync;
+    final months = group.retentionMonths;
+    if (last == null || months <= 0) return false;
+    final now = DateTime.now();
+    final cutoff = DateTime(
+      now.year,
+      now.month - months,
+      now.day,
+      now.hour,
+      now.minute,
+    );
+    return last < cutoff.millisecondsSinceEpoch;
+  }
+
+  void _onSynced() {
+    if (_resyncing) return;
+    if (_isStale) {
+      _startResync();
+      return;
+    }
+    _lastSync = DateTime.now().millisecondsSinceEpoch;
+    _saveTimer?.cancel();
+    _saveTimer = Timer(const Duration(milliseconds: 300), save);
+  }
+
+  /// Veraltet: keine Schnappschüsse verschicken, Ausstehendes zurückhalten
+  /// und auf einen vollständigen Schnappschuss eines anderen Geräts warten.
+  void _startResync() {
+    final sync = _sync;
+    if (sync == null) return;
+    if (!_resyncing) _touched.clear();
+    _resyncing = true;
+    sync.answerSnapshots = false;
+    unawaited(sync.requestSnapshot());
+    _changed();
+  }
+
+  /// Der aktuelle Stand ist da: Alles verwerfen, was es dort nicht mehr gibt
+  /// – außer seitdem Geändertem und offline neu Angelegtem –, ebenso
+  /// ausstehende Änderungen an Verworfenem. Danach wieder normal.
+  void _onCompleteSnapshot(List<Change> snapshot) {
+    if (!_resyncing) return;
+    final keep = {
+      for (final c in snapshot) (c.type, c.id),
+      ..._touched,
+      for (final c in outbox.pending)
+        if (c.field == deletedField && c.value == false) (c.type, c.id),
+    };
+    for (final key in group.replica.keys.difference(keep)) {
+      group.replica.drop(key.$1, key.$2);
+    }
+    outbox.retainWhere((c) => keep.contains((c.type, c.id)));
+    _resyncing = false;
+    _touched.clear();
+    _sync?.answerSnapshots = true;
+    _lastSync = DateTime.now().millisecondsSinceEpoch;
+    _changed();
+    unawaited(flush());
+  }
+
   void _changed() {
     notifyListeners();
     _saveTimer?.cancel();
@@ -230,6 +320,8 @@ class GroupSession extends ChangeNotifier {
         'private': [for (final c in private.replica.snapshot()) c.toJson()],
         'outbox': outbox.toJson(),
         'privateDirty': _privateDirty,
+        'lastSync': _lastSync,
+        'resyncing': _resyncing,
       }),
     );
   }

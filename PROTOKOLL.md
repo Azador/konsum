@@ -251,6 +251,32 @@ Zeitstempel) als `de.azadoro.konsum.changes` mit `snapshot: true`, aufgeteilt
 nach der Größengrenze. Mehrere gleichzeitige Schnappschüsse schaden nicht,
 sie kosten nur Platz.
 
+Jeder Teil eines Schnappschusses trägt zusätzlich `snapshotId` (zufälliger
+Text, gleich für alle Teile), `part` (ab 0) und `parts` (Anzahl). Damit
+erkennt ein Empfänger, wann er einen **vollständigen** Schnappschuss hat.
+Ältere Clients ignorieren die Felder.
+
+### Veraltetes Gerät
+
+Ein Gerät merkt sich je Gruppe, wann es zuletzt **lückenlos** mit dem Raum
+synchronisiert hat (ein Sync ohne `limited: true` für diesen Raum). Liegt das
+länger zurück als die Aufbewahrungsfrist (`settings.retentionMonths`), kann es
+Tombstones verpasst haben, die auf den anderen Geräten schon verfallen sind.
+Sein Stand würde dort gelöschte Objekte wiederbeleben. Ein solches Gerät
+
+1. verschickt keine Schnappschüsse und hält seine ausstehenden Changes
+   zurück,
+2. sendet `snapshot_request` und wiederholt das in wachsenden Abständen, bis
+   ein **vollständiger** Schnappschuss eines anderen Geräts eingetroffen ist
+   (die Changes wendet es wie immer an),
+3. entfernt dann alle Objekte, die weder im Schnappschuss stehen noch seit
+   der Anfrage durch eingehende Changes berührt wurden noch von ihm selbst
+   (ausstehend) neu angelegt wurden (`_deleted: false` in der Warteschlange),
+4. verwirft ausstehende Changes an entfernten Objekten, verschickt den Rest
+   und verhält sich wieder normal.
+
+Mit `retentionMonths: 0` (ohne automatisches Löschen) ist kein Gerät veraltet.
+
 ### Private Daten
 
 Beim Öffnen liest das Gerät `de.azadoro.konsum.private` aus der Room Account
