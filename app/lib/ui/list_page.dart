@@ -356,10 +356,10 @@ class _ListPageState extends State<ListPage> {
         if (category != lastCategory) {
           result.add(
             Padding(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+              padding: const EdgeInsets.fromLTRB(16, 6, 16, 0),
               child: Text(
                 category ?? 'Sonstiges',
-                style: Theme.of(context).textTheme.labelLarge
+                style: Theme.of(context).textTheme.labelMedium
                     ?.copyWith(color: Theme.of(context).colorScheme.primary),
               ),
             ),
@@ -420,6 +420,9 @@ class _EntryTile extends StatelessWidget {
       onDismissed: (_) =>
           session.apply(group.removeFromList(entry.listId, entry.articleId)),
       child: CheckboxListTile(
+        visualDensity: const VisualDensity(vertical: -4),
+        minVerticalPadding: 5,
+        minTileHeight: 0,
         controlAffinity: ListTileControlAffinity.leading,
         value: entry.checked,
         onChanged: (v) => session.apply(
@@ -448,6 +451,7 @@ class _EntryTile extends StatelessWidget {
                 ],
               ),
             IconButton(
+              visualDensity: VisualDensity.compact,
               tooltip: 'Bearbeiten',
               icon: const Icon(Icons.edit_outlined),
               onPressed: () => showEntrySheet(context, session, entry),
