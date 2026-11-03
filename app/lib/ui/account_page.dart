@@ -65,7 +65,7 @@ class _AccountPageState extends State<AccountPage> {
             OutlinedButton.icon(
               icon: const Icon(Icons.logout),
               label: const Text('Abmelden'),
-              onPressed: matrix.busy ? null : matrix.logout,
+              onPressed: matrix.busy ? null : () => _logout(matrix),
             ),
             const SizedBox(height: 8),
             TextButton.icon(
@@ -175,6 +175,54 @@ class _AccountPageState extends State<AccountPage> {
   Future<void> _keySetup({required bool reset}) => Navigator.of(
     context,
   ).push(MaterialPageRoute<void>(builder: (_) => KeySetupPage(reset: reset)));
+
+  /// Abmelden; vorher fragen, was mit den Matrix-Gruppen geschieht.
+  Future<void> _logout(MatrixService matrix) async {
+    final groups = matrix.sharedGroups;
+    if (groups.isEmpty) {
+      await matrix.logout(keepGroups: false);
+      return;
+    }
+    final unsent = groups.any((g) => !g.outbox.isEmpty);
+    final names = groups.map((g) => '„${g.info.name}“').join(', ');
+    final keep = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Abmelden'),
+        content: Text(
+          'Was soll mit den geteilten Gruppen ($names) auf diesem Gerät '
+          'geschehen?\n\n'
+          'Behältst du sie, bleiben sie als lokale Kopie mit dem Zusatz '
+          '„(lokal)“ erhalten, werden aber nicht mehr abgeglichen: Änderungen '
+          'daran erreichen die anderen Mitglieder nicht, und Änderungen der '
+          'anderen kommen nicht mehr an. Wenn du dich wieder anmeldest, kommen '
+          'die Gruppen neu dazu; die lokale Kopie bleibt getrennt davon '
+          'bestehen.\n\n'
+          'Entfernst du sie, bleiben sie für die anderen Mitglieder erhalten '
+          'und kommen bei der nächsten Anmeldung zurück.'
+          '${unsent ? '\n\nAchtung: Es gibt noch nicht übertragene '
+                    'Änderungen. Sie erreichen die Gruppe nach dem Abmelden '
+                    'nicht mehr.' : ''}',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Abbrechen'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Entfernen'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Lokal behalten'),
+          ),
+        ],
+      ),
+    );
+    if (keep == null) return;
+    await matrix.logout(keepGroups: keep);
+  }
 
   Future<void> _deleteAccount(MatrixService matrix) async {
     final ok = await showDialog<bool>(

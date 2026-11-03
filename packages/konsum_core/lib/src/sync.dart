@@ -42,6 +42,9 @@ class Outbox {
 
   void add(Iterable<Change> changes) => _pending.addAll(changes);
 
+  /// Verwirft alles Ausstehende, z. B. wenn die Gruppe nicht mehr geteilt ist.
+  void clear() => _pending.clear();
+
   /// Versucht, alles Ausstehende mit [send] zu verschicken. Bei Erfolg wird
   /// das Verschickte entfernt; was währenddessen hinzukommt, bleibt.
   /// Liefert true, wenn danach nichts mehr aussteht.

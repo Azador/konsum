@@ -12,3 +12,6 @@ typedef MatrixDatabase = ({DatabaseApi database, String? warning});
 /// Auf Linux mit SQLCipher verschlüsselt, der Schlüssel liegt in KWallet oder
 /// im Secret Service (GNOME-Schlüsselbund, KeePassXC, …).
 Future<MatrixDatabase> openMatrixDatabase(String name) => impl.open(name);
+
+/// Ob es die Datenbank schon gibt. Sie entsteht erst bei der Anmeldung.
+Future<bool> matrixDatabaseExists(String name) => impl.exists(name);

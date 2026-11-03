@@ -125,6 +125,16 @@ class GroupSession extends ChangeNotifier {
     _changed();
   }
 
+  /// Macht aus einer geteilten Gruppe eine lokale: Verbindung trennen,
+  /// Ausstehendes verwerfen (es erreicht die Gruppe nicht mehr).
+  Future<void> unshare() async {
+    await detach();
+    info.backend = null;
+    outbox.clear();
+    _privateDirty = false;
+    _changed();
+  }
+
   /// Verbindet die Gruppe mit einem Sync-Dienst.
   Future<void> attach(GroupSync sync) async {
     await detach();
