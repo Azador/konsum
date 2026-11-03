@@ -37,8 +37,23 @@ void main() {
       amount: 0.5,
       unit: Units.kilogram,
     ));
-    // Packungsgröße in einer Zähleinheit zählt nicht.
+    // Packung mit 6 Stück: Preis je Stück.
     expect(baseAmount(quantity: 2, packSize: 6, packUnit: Units.piece), (
+      amount: 12,
+      unit: Units.piece,
+    ));
+    // Stück je Stück ergibt keinen Sinn und zählt nicht.
+    expect(
+      baseAmount(
+        quantity: 3,
+        unit: Units.piece,
+        packSize: 6,
+        packUnit: Units.piece,
+      ),
+      (amount: 3, unit: Units.piece),
+    );
+    // Andere Zähleinheiten als Inhalt zählen nicht.
+    expect(baseAmount(quantity: 2, packSize: 6, packUnit: Units.can), (
       amount: 2,
       unit: Units.pack,
     ));

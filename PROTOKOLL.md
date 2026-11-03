@@ -267,7 +267,7 @@ Beim Löschen einer Liste werden auch ihre Einträge gelöscht.
 | `categoryId` | ID \| null | `category` |
 | `defaultUnit` | Einheit \| null | Vorgabe beim Hinzufügen |
 | `packSize` | Zahl \| null | übliche Packungsgröße, z. B. `500` … |
-| `packUnit` | Einheit \| null | … `g`; nur `g`, `kg`, `ml`, `l` |
+| `packUnit` | Einheit \| null | … `g`; nur `g`, `kg`, `ml`, `l`, `pcs` |
 | `_deleted` | bool | |
 
 Ein Artikel bleibt bestehen, wenn er von einer Liste genommen wird. Beim
@@ -362,7 +362,10 @@ Grundlage für Vorschläge (häufig gekaufte Artikel zuerst).
 `bottle` (Flasche), `bunch` (Bund). `g`, `kg`, `ml`, `l` sind Maße, der Rest
 Zähleinheiten. Grundeinheiten für Preise: `kg` für Gewicht, `l` für Volumen,
 sonst die Zähleinheit; bei Zähleinheiten mit `packSize` in einem Maß wird
-über das Maß gerechnet. Unbekannte Einheiten anderer Clients bitte als Text
+über das Maß gerechnet, mit `packSize` in `pcs` (z. B. Packung mit 6 Stück)
+über die Stückzahl mit Grundeinheit `pcs`. `pcs` je `pcs` wird ignoriert.
+Ältere Clients kennen `pcs` als `packUnit` nicht und rechnen dann in der
+Zähleinheit. Unbekannte Einheiten anderer Clients bitte als Text
 anzeigen.
 
 ### Private Daten: `note`

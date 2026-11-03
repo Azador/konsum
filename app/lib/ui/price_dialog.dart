@@ -160,7 +160,7 @@ class _PriceDialogState extends State<_PriceDialog> {
                   Expanded(
                     child: UnitField(
                       value: _packUnit,
-                      units: Units.measures,
+                      units: Units.packUnits,
                       allowNone: false,
                       onChanged: (u) =>
                           setState(() => _packUnit = u ?? Units.gram),

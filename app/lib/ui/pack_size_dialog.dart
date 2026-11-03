@@ -7,7 +7,7 @@ import 'unit_field.dart';
 /// Ergebnis von [showPackSizeDialog]; `size == null` heißt „keine“.
 typedef PackSize = ({num? size, String unit});
 
-/// Fragt eine Packungsgröße ab (Zahl und g/kg/ml/l). Null bei Abbruch.
+/// Fragt eine Packungsgröße ab (Zahl und g/kg/ml/l/Stück). Null bei Abbruch.
 Future<PackSize?> showPackSizeDialog(
   BuildContext context, {
   num? size,
@@ -72,7 +72,7 @@ class _PackSizeDialogState extends State<_PackSizeDialog> {
         Expanded(
           child: UnitField(
             value: _unit,
-            units: Units.measures,
+            units: Units.packUnits,
             allowNone: false,
             onChanged: (u) => setState(() => _unit = u ?? Units.gram),
           ),

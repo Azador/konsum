@@ -61,6 +61,10 @@ void main() {
       formatAmount(quantity: 3, packSize: 500, packUnit: Units.gram),
       '3 Packungen à 500 g',
     );
+    expect(
+      formatAmount(quantity: 2, packSize: 6, packUnit: Units.piece),
+      '2 Packungen à 6 Stück',
+    );
     // Packungsgröße nur bei Zähleinheiten.
     expect(
       formatAmount(
@@ -79,7 +83,10 @@ void main() {
     expect(parseAmount('6 x 0.33l'), (size: 0.33, unit: 'l'));
     expect(parseAmount('500 gr'), (size: 500, unit: 'g'));
     expect(parseAmount('1 Liter'), (size: 1, unit: 'l'));
-    expect(parseAmount('2 Stück'), isNull);
+    expect(parseAmount('6 Stück'), (size: 6, unit: Units.piece));
+    expect(parseAmount('10 Stk.'), (size: 10, unit: Units.piece));
+    expect(parseAmount('6 Stück à 60 g'), (size: 60, unit: 'g'));
+    expect(parseAmount('2 Stunden'), isNull);
     expect(parseAmount(''), isNull);
   });
 

@@ -41,6 +41,16 @@ abstract final class Units {
 
   static bool isMeasure(String? unit) => measures.contains(unit);
 
+  /// Möglicher Inhalt einer Packung: Gewicht, Volumen oder Stück (z. B. eine
+  /// Packung mit 6 Eiern).
+  static const packUnits = [...measures, piece];
+
+  /// Ob [packUnit] als Inhalt je [unit] zählt. Stück je Stück ergibt keinen
+  /// Sinn und wird ignoriert.
+  static bool isPackUnitFor(String? packUnit, String? unit) =>
+      isCount(unit) &&
+      (isMeasure(packUnit) || (packUnit == piece && unit != piece));
+
   /// Zähleinheit (Stück, Packung, …), für die eine Packungsgröße passt.
   /// Ohne Einheit gilt Packung.
   static bool isCount(String? unit) => !isMeasure(unit);

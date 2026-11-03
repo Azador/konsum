@@ -301,7 +301,7 @@ class _EntrySheetState extends State<_EntrySheet> {
                   Expanded(
                     child: UnitField(
                       value: _packUnit,
-                      units: Units.measures,
+                      units: Units.packUnits,
                       allowNone: false,
                       onChanged: (u) {
                         _packUnit = u ?? Units.gram;
