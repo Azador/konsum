@@ -173,6 +173,25 @@ class AppState extends ChangeNotifier {
     _changed();
   }
 
+  /// Behält eine geteilte Gruppe als lokale Kopie, z. B. beim Abmelden. Der
+  /// Name bekommt einen Zusatz, damit sie sich von der Gruppe unterscheidet,
+  /// die nach erneuter Anmeldung wieder aus dem Konto dazukommt.
+  Future<void> keepAsLocal(GroupSession g) async {
+    await g.unshare();
+    g.info.name = localCopyName(g.info.name);
+    _changed();
+  }
+
+  /// „Name (lokal)“, bei Bedarf hochgezählt: „Name (lokal 2)“, …
+  String localCopyName(String name) {
+    final taken = {for (final g in _groups) g.info.name};
+    var candidate = '$name (lokal)';
+    for (var i = 2; taken.contains(candidate); i++) {
+      candidate = '$name (lokal $i)';
+    }
+    return candidate;
+  }
+
   /// Entfernt die Gruppe von diesem Gerät.
   Future<void> removeGroup(GroupSession g) async {
     _groups.remove(g);

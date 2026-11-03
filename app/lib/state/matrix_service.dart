@@ -104,8 +104,11 @@ class MatrixService extends ChangeNotifier {
       if (g.invited) g,
   ];
 
-  /// Öffnet die gespeicherte Sitzung, falls vorhanden. Fehler (z. B. offline)
-  /// verhindern den App-Start nicht.
+  static const _databaseName = 'konsum_matrix';
+
+  /// Öffnet die gespeicherte Sitzung, falls vorhanden. Ohne Anmeldung gibt es
+  /// keine Matrix-Datenbank; sie entsteht erst mit [checkServer]. Fehler
+  /// (z. B. offline) verhindern den App-Start nicht.
   Future<void> init() async {
     try {
       try {
@@ -115,35 +118,65 @@ class MatrixService extends ChangeNotifier {
       } catch (e) {
         debugPrint('Verschlüsselung nicht verfügbar: $e');
       }
-      final db = await openMatrixDatabase('konsum_matrix');
-      if (db.warning != null) _app.status.show(db.warning!);
-      final client = Client(
-        'Konsum',
-        database: db.database,
-        // Konsum-Ereignisse verschicken nur Konsum-Geräte, und die können
-        // (noch) nicht verifizieren. Mit der Standardeinstellung bekämen
-        // Konsum-Geräte von Konten mit Cross-Signing (z. B. durch Element)
-        // keine Schlüssel und könnten nichts entschlüsseln.
-        shareKeysWith: ShareKeysWith.all,
-        // QR-Codes nicht: Dafür bräuchte es die Kamera auch unter Linux.
-        verificationMethods: {
-          KeyVerificationMethod.emoji,
-          KeyVerificationMethod.numbers,
-        },
-      );
-      _client = client;
-      await client.init(waitForFirstSync: false);
-      _syncSub = client.onSync.stream.listen((_) {
-        _adoptRoomNames();
-        notifyListeners();
-        unawaited(_adoptJoinedRooms());
-      });
-      _verificationSub = client.onKeyVerificationRequest.stream.listen(_track);
-      if (isLoggedIn) await connectAll();
+      if (!await matrixDatabaseExists(_databaseName)) return;
+      final client = await _openClient();
+      if (!client.isLogged()) {
+        // Reste früherer Versionen, die die Datenbank immer angelegt haben.
+        await _discardClient();
+        return;
+      }
+      await connectAll();
     } catch (e) {
       error = 'Matrix nicht verfügbar: $e';
+    } finally {
+      notifyListeners();
     }
-    notifyListeners();
+  }
+
+  /// Legt den Client samt Datenbank an (bzw. öffnet die vorhandene).
+  Future<Client> _openClient() async {
+    final existing = _client;
+    if (existing != null) return existing;
+    final db = await openMatrixDatabase(_databaseName);
+    if (db.warning != null) _app.status.show(db.warning!);
+    final client = Client(
+      'Konsum',
+      database: db.database,
+      // Konsum-Ereignisse verschicken nur Konsum-Geräte, und die können
+      // (noch) nicht verifizieren. Mit der Standardeinstellung bekämen
+      // Konsum-Geräte von Konten mit Cross-Signing (z. B. durch Element)
+      // keine Schlüssel und könnten nichts entschlüsseln.
+      shareKeysWith: ShareKeysWith.all,
+      // QR-Codes nicht: Dafür bräuchte es die Kamera auch unter Linux.
+      verificationMethods: {
+        KeyVerificationMethod.emoji,
+        KeyVerificationMethod.numbers,
+      },
+    );
+    _client = client;
+    await client.init(waitForFirstSync: false);
+    _syncSub = client.onSync.stream.listen((_) {
+      _adoptRoomNames();
+      notifyListeners();
+      unawaited(_adoptJoinedRooms());
+    });
+    _verificationSub = client.onKeyVerificationRequest.stream.listen(_track);
+    return client;
+  }
+
+  /// Schließt den Client und löscht die Datenbank vollständig (Datei bzw.
+  /// IndexedDB), damit keine Reste von Ereignissen zurückbleiben.
+  Future<void> _discardClient() async {
+    final client = _client;
+    if (client == null) return;
+    _client = null;
+    verification = null;
+    await _syncSub?.cancel();
+    await _verificationSub?.cancel();
+    _syncSub = _verificationSub = null;
+    final database = client.database;
+    await client.dispose(closeDatabase: false);
+    await database.delete();
   }
 
   /// Prüft den Server und ermittelt, wie man sich anmelden kann. [input] ist
@@ -151,8 +184,7 @@ class MatrixService extends ChangeNotifier {
   Future<ServerLogin?> checkServer(String input) async {
     ServerLogin? result;
     await _run(() async {
-      final client = _client;
-      if (client == null) throw StateError(error ?? 'Matrix nicht verfügbar');
+      final client = await _openClient();
       var server = input.trim();
       if (server.startsWith('@') && server.contains(':')) {
         server = server.substring(server.indexOf(':') + 1);
@@ -265,11 +297,29 @@ class MatrixService extends ChangeNotifier {
     }
   }
 
-  Future<bool> logout() => _run(() async {
-    for (final g in _app.groups) {
-      if (g.info.backend?['type'] == _backendType) await g.detach();
+  /// Matrix-Gruppen auf diesem Gerät.
+  List<GroupSession> get sharedGroups => [
+    for (final g in _app.groups)
+      if (g.info.backend?['type'] == _backendType) g,
+  ];
+
+  /// Meldet ab und löscht die Matrix-Datenbank. Die Matrix-Gruppen werden
+  /// entfernt oder ([keepGroups]) als lokale Kopie behalten; nach erneuter
+  /// Anmeldung kommen sie getrennt davon wieder aus dem Konto.
+  Future<bool> logout({required bool keepGroups}) => _run(() async {
+    for (final g in sharedGroups) {
+      if (keepGroups) {
+        await _app.keepAsLocal(g);
+      } else {
+        await _app.removeGroup(g);
+      }
     }
-    await _client?.logout();
+    try {
+      await _client?.logout();
+    } finally {
+      // Auch wenn der Server nicht erreichbar war: lokal ist abgemeldet.
+      await _discardClient();
+    }
   });
 
   /// Öffnet im Browser die Seite des Servers, auf der man das Konto löscht.

@@ -9,6 +9,11 @@ import 'matrix_db.dart';
 import 'private_dir_io.dart';
 import 'secret_store.dart';
 
+Future<bool> exists(String name) async {
+  final dir = await privateSupportDirectory();
+  return File('${dir.path}/$name.sqlite').exists();
+}
+
 Future<MatrixDatabase> open(String name) async {
   final DatabaseFactory factory;
   if (Platform.isLinux || Platform.isWindows || Platform.isMacOS) {
