@@ -14,7 +14,7 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: Tag, für den das App-Bundle gebaut wird (z. B. v0.6.6)
+        description: Tag, für den das App-Bundle gebaut wird (z. B. v0.6.7)
         required: true
         type: string
 

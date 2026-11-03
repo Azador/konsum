@@ -1,0 +1,6 @@
+• Geräte-Verifizierung direkt in Konsum einrichten, mit Wiederherstellungsschlüssel. Damit lassen sich auch Element und andere Matrix-Apps bestätigen. Notfalls kann man sie zurücksetzen.
+• Packungsgröße nachträglich eintragen ändert den Preis nicht mehr.
+• „Stück“ als Packungsinhalt, z. B. 6 Eier je Packung.
+• Neue Artikel werden in die Sicht gescrollt.
+• Vorschläge nur beim Tippen, über der Liste und ohne leeren Rand.
+• Nur noch Hochformat.
