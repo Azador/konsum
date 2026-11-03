@@ -54,6 +54,7 @@ Future<MatrixDatabase> open(String name) async {
       await restrictPermissions('$path$suffix', '600');
     }
   }
+  await _dropTimelines(db);
   return (
     database: await MatrixSdkDatabase.init(
       name,
@@ -117,4 +118,25 @@ Future<bool> _isPlainText(File file) async {
   } finally {
     await raf.close();
   }
+}
+
+/// Konsum liest keine Ereignisse aus der Datenbank: Es übernimmt sie beim
+/// Eintreffen in seinen eigenen Datenstand. Das SDK speichert sie trotzdem –
+/// entschlüsselt und für alle Räume des Kontos, auch fremde Chats. Vor dem
+/// Start des SDK werden sie deshalb gelöscht und die Datei neu geschrieben
+/// (`VACUUM`), damit keine Reste im freien Platz bleiben.
+Future<void> _dropTimelines(Database db) async {
+  const tables = ['box_events', 'box_timeline_fragments'];
+  final existing = await db.rawQuery(
+    "SELECT name FROM sqlite_master WHERE type = 'table' AND name IN "
+    "('box_events', 'box_timeline_fragments')",
+  );
+  var deleted = 0;
+  for (final row in existing) {
+    final table = row['name'] as String;
+    if (tables.contains(table)) deleted += await db.delete(table);
+  }
+  final free = await db.rawQuery('PRAGMA freelist_count');
+  final freePages = (free.firstOrNull?.values.firstOrNull as int?) ?? 0;
+  if (deleted > 0 || freePages > 0) await db.execute('VACUUM');
 }

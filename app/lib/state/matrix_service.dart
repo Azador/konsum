@@ -61,6 +61,7 @@ class MatrixService extends ChangeNotifier {
   Client? _client;
   StreamSubscription<Object?>? _syncSub;
   StreamSubscription<Object?>? _verificationSub;
+  StreamSubscription<Object?>? _timelineSub;
   String? error;
   bool busy = false;
 
@@ -161,6 +162,15 @@ class MatrixService extends ChangeNotifier {
       unawaited(_adoptJoinedRooms());
     });
     _verificationSub = client.onKeyVerificationRequest.stream.listen(_track);
+    // Verarbeitete Ereignisse braucht Konsum nicht mehr (siehe
+    // matrix_db_io.dart); die Gruppen haben sie schon übernommen.
+    _timelineSub = client.onTimelineEvent.stream.listen((e) {
+      final roomId = e.roomId;
+      if (roomId == null || !e.status.isSynced) return;
+      unawaited(
+        client.database.removeEvent(e.eventId, roomId).catchError((_) {}),
+      );
+    });
     return client;
   }
 
@@ -173,7 +183,8 @@ class MatrixService extends ChangeNotifier {
     verification = null;
     await _syncSub?.cancel();
     await _verificationSub?.cancel();
-    _syncSub = _verificationSub = null;
+    await _timelineSub?.cancel();
+    _syncSub = _verificationSub = _timelineSub = null;
     final database = client.database;
     await client.dispose(closeDatabase: false);
     await database.delete();
@@ -585,6 +596,7 @@ class MatrixService extends ChangeNotifier {
   void dispose() {
     _syncSub?.cancel();
     _verificationSub?.cancel();
+    _timelineSub?.cancel();
     super.dispose();
   }
 }
