@@ -77,4 +77,30 @@ void main() {
     expect(g.private.note('${again.currentListId}/${r.id}'), 'laktosefrei');
     expect(g.outbox.pending, isEmpty, reason: 'lokale Gruppe, keine Outbox');
   });
+
+  testWidgets('Farbschema pro Gruppe wirkt aufs Theme und bleibt erhalten', (
+    tester,
+  ) async {
+    final (state, store) = await start(tester);
+    final session = state.currentGroup!;
+    Color primary() =>
+        Theme.of(tester.element(find.byType(Scaffold).first))
+            .colorScheme
+            .primary;
+    final green = primary();
+
+    state.setColor(session, Colors.blue.toARGB32());
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 1)); // Theme-Animation
+    expect(primary(), isNot(green));
+    await tester.runAsync(() => Future<void>.delayed(Duration.zero));
+
+    final again = (await tester.runAsync(() => AppState.load(store)))!;
+    expect(again.colorFor(again.currentGroup!), Colors.blue.toARGB32());
+
+    state.setColor(session, null);
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 1));
+    expect(primary(), green);
+  });
 }

@@ -12,6 +12,7 @@ import 'ui/dialogs.dart';
 import 'ui/drawer.dart';
 import 'ui/list_page.dart';
 import 'ui/scope.dart';
+import 'ui/theme.dart';
 import 'ui/verification_page.dart';
 
 Future<void> main() async {
@@ -44,21 +45,26 @@ class KonsumApp extends StatelessWidget {
   Widget build(BuildContext context) {
     final app = AppScope(
       state: state,
-      child: MaterialApp(
-        title: 'Konsum',
-        navigatorKey: _navigator,
-        builder: (context, child) =>
-            VerificationListener(navigator: _navigator, child: child!),
-        theme: ThemeData(colorSchemeSeed: Colors.green, fontFamily: 'Roboto'),
-        darkTheme: ThemeData(
-          colorSchemeSeed: Colors.green,
-          fontFamily: 'Roboto',
-          brightness: Brightness.dark,
-        ),
-        locale: const Locale('de'),
-        supportedLocales: const [Locale('de')],
-        localizationsDelegates: GlobalMaterialLocalizations.delegates,
-        home: const HomePage(),
+      // Das Farbschema folgt der aktuellen Gruppe.
+      child: ListenableBuilder(
+        listenable: state,
+        builder: (context, _) {
+          final current = state.currentGroup;
+          final argb = current == null ? null : state.colorFor(current);
+          final seed = argb == null ? null : Color(argb);
+          return MaterialApp(
+            title: 'Konsum',
+            navigatorKey: _navigator,
+            builder: (context, child) =>
+                VerificationListener(navigator: _navigator, child: child!),
+            theme: buildTheme(seed, Brightness.light),
+            darkTheme: buildTheme(seed, Brightness.dark),
+            locale: const Locale('de'),
+            supportedLocales: const [Locale('de')],
+            localizationsDelegates: GlobalMaterialLocalizations.delegates,
+            home: const HomePage(),
+          );
+        },
       ),
     );
     return matrix == null ? app : MatrixScope(service: matrix!, child: app);
