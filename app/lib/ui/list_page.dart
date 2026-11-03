@@ -321,24 +321,34 @@ class _ListPageState extends State<ListPage> {
       constraints: const BoxConstraints(maxHeight: 132),
       padding: const EdgeInsets.fromLTRB(12, 4, 12, 4),
       child: SingleChildScrollView(
-        child: Wrap(
-          spacing: 6,
-          runSpacing: 0,
-          children: [
-            for (final a in items)
-              ActionChip(
-                label: Text(a.name),
-                // Deckend, damit der Name über der Liste lesbar bleibt.
-                backgroundColor: colors.secondaryContainer,
-                side: BorderSide.none,
-                elevation: 2,
-                onPressed: () => _addArticle(
-                  a.id,
-                  quantity: query.quantity,
-                  unit: query.unit,
+        // Chips liegen auf einem Material in der deckenden canvasColor; ohne
+        // diese Überschreibung wäre ihr Hintergrund nicht durchsichtig.
+        child: Theme(
+          data: Theme.of(context).copyWith(canvasColor: Colors.transparent),
+          child: Wrap(
+            spacing: 6,
+            runSpacing: 0,
+            children: [
+              for (final a in items)
+                ActionChip(
+                  label: Text(a.name),
+                  // Fast deckend, damit der Name über der Liste lesbar bleibt.
+                  backgroundColor: colors.secondaryContainer.withValues(
+                    alpha: 0.8,
+                  ),
+                  side: BorderSide.none,
+                  // Kein Schatten: der schiene durch den halbtransparenten
+                  // Hintergrund und dunkelte ihn nur ab.
+                  elevation: 0,
+                  pressElevation: 0,
+                  onPressed: () => _addArticle(
+                    a.id,
+                    quantity: query.quantity,
+                    unit: query.unit,
+                  ),
                 ),
-              ),
-          ],
+            ],
+          ),
         ),
       ),
     );
