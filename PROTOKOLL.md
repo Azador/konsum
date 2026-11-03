@@ -45,6 +45,14 @@ Konsum legt Räume so an:
 | `m.room.history_visibility` | `shared` |
 | `m.room.encryption` | `m.megolm.v1.aes-sha2`, wenn der Client verschlüsseln kann |
 | `m.room.name` | Name der Gruppe |
+| `m.room.retention` | `{max_lifetime: <ms>}` aus `settings.retentionMonths` (Monate × 31 Tage), ohne `max_lifetime` bei `0`; siehe unten |
+
+**Aufbewahrungsfrist im Raum** (MSC1763, noch nicht in der Spezifikation):
+Jedes Gerät, das den Zustand `m.room.retention` setzen darf, gleicht ihn mit
+`settings.retentionMonths` ab. Jeder beteiligte Server setzt die Frist für
+seine Kopie des Raums selbst um – oder nicht. Konsum braucht die Historie des
+Raums nicht (neue Geräte bekommen einen Schnappschuss), gelöschte Ereignisse
+schaden also nicht.
 
 Ein Client erkennt Konsum-Gruppen ausschließlich am Raumtyp. Räume ohne
 diesen Typ sind keine Konsum-Gruppen.

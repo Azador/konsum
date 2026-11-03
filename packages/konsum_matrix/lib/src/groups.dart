@@ -25,6 +25,10 @@ class MatrixGroups {
 
   final Client client;
 
+  /// Zustandsereignis für die Aufbewahrungsfrist des Raums (MSC1763,
+  /// noch nicht in der Spezifikation). Inhalt `{max_lifetime: <ms>}`.
+  static const retentionType = 'm.room.retention';
+
   static bool isKonsumRoom(Room room) =>
       room.getState(EventTypes.RoomCreate)?.content['type'] ==
       KonsumEvents.roomType;
@@ -77,6 +81,40 @@ class MatrixGroups {
 
   Future<void> rename(String roomId, String name) =>
       client.getRoomById(roomId)!.setName(name);
+
+  /// Aufbewahrungsfrist des Raums in Millisekunden; null: keine.
+  int? retention(String roomId) =>
+      (client
+                  .getRoomById(roomId)
+                  ?.getState(retentionType)
+                  ?.content['max_lifetime']
+              as num?)
+          ?.toInt();
+
+  /// Ob das Konto die Frist ändern darf (Admin/Moderator des Raums).
+  bool canSetRetention(String roomId) =>
+      client.getRoomById(roomId)?.canChangeStateEvent(retentionType) ?? false;
+
+  /// Setzt die Frist; null entfernt sie (Inhalt ohne `max_lifetime`).
+  Future<void> setRetention(String roomId, int? maxLifetime) =>
+      client.setRoomStateWithKey(roomId, retentionType, '', {
+        'max_lifetime': ?maxLifetime,
+      });
+
+  /// Ob der eigene Server Fristen umsetzt und das mitteilt (Synapse ab
+  /// 1.156 mit Retention und `experimental_features.msc1763_enabled`).
+  /// Andere beteiligte Server entscheiden für ihre Kopie selbst.
+  Future<bool> serverSupportsRetention() async {
+    try {
+      await client.request(
+        RequestType.GET,
+        '/client/unstable/org.matrix.msc1763/retention/configuration',
+      );
+      return true;
+    } on MatrixException {
+      return false;
+    }
+  }
 
   /// Mitglieder (Matrix-IDs) einer Gruppe, die beigetreten oder eingeladen sind.
   Future<List<String>> members(String roomId) async {

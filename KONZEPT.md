@@ -233,6 +233,9 @@ von selbst zum selben Stand. Verfallenes gehört in keinen Schnappschuss.
   verwerfen ihn normalerweise), oder **Umzug** in einen frischen Raum mit dem
   aktuellen Stand und Verlassen des alten (gründlich, aber neue Einladungen
   und Schlüssel). Noch nicht entschieden.
+- **Umgesetzt** (2026-11-03): Geräte mit dem Recht dazu setzen
+  `m.room.retention` passend zur Frist der Gruppe (Monate × 31 Tage); die
+  Gruppenseite zeigt, ob der eigene Server das unterstützt.
 
 ### Matrix-Datenbank (lokal)
 
