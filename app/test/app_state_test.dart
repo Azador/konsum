@@ -18,6 +18,9 @@ void main() {
     );
     final r = shared.group.createArticle('Milch');
     shared.apply(r.changes);
+    final weg = shared.group.createArticle('Weg');
+    shared.apply(weg.changes);
+    shared.apply(shared.group.deleteArticle(weg.id));
     expect(shared.outbox.isEmpty, isFalse, reason: 'noch nicht verschickt');
 
     await state.keepAsLocal(shared);
@@ -26,6 +29,11 @@ void main() {
     expect(shared.status, SyncStatus.local);
     expect(shared.outbox.isEmpty, isTrue);
     expect(shared.group.articles.single.name, 'Milch', reason: 'Daten bleiben');
+    expect(
+      shared.group.replica.snapshot().any((c) => c.id == weg.id),
+      isFalse,
+      reason: 'kein Grabstein in lokalen Gruppen',
+    );
     // Die Startgruppe heißt ebenfalls „Zuhause“; die Kopie ist unterscheidbar.
     expect(shared.info.name, 'Zuhause (lokal)');
 

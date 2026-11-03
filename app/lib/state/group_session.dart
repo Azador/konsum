@@ -139,6 +139,8 @@ class GroupSession extends ChangeNotifier {
     info.backend = null;
     outbox.clear();
     _privateDirty = false;
+    // Lokale Gruppen brauchen keine Grabsteine.
+    group.replica.dropTombstones();
     _changed();
   }
 
