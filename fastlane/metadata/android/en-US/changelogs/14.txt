@@ -1,0 +1,6 @@
+• Set up device verification directly in Konsum, with a recovery key. This also lets you verify Element and other Matrix apps. It can be reset if needed.
+• Adding a pack size afterwards no longer changes the price.
+• "Pieces" as pack content, e.g. 6 eggs per pack.
+• Newly added items are scrolled into view.
+• Suggestions only while typing, shown over the list, without empty space.
+• Portrait orientation only.
