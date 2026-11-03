@@ -103,4 +103,24 @@ void main() {
     await tester.pump(const Duration(seconds: 1));
     expect(primary(), green);
   });
+
+  testWidgets('Aufbewahrung in den Gruppeneinstellungen', (tester) async {
+    final (state, _) = await start(tester);
+    final group = state.currentGroup!.group;
+    await tester.tap(find.byTooltip('Navigationsmenü öffnen'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('Gruppe verwalten'));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('6 Monate (Vorgabe)'), findsOneWidget);
+
+    await tester.tap(find.text('Aufbewahrung'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Nicht automatisch löschen'));
+    await tester.pump();
+    await tester.tap(find.text('Übernehmen'));
+    await tester.pumpAndSettle();
+    expect(group.retentionMonths, 0);
+    expect(find.textContaining('Ohne automatisches Löschen'), findsOneWidget);
+    await tester.pump(const Duration(seconds: 1)); // verzögertes Speichern
+  });
 }

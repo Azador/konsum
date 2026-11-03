@@ -343,6 +343,61 @@ void main() {
     expect(s.bob.articleForBarcode('4000000000001')!.id, spaghetti);
   });
 
+  group('Aufbewahrungsfrist', () {
+    const day = 24 * 60 * 60 * 1000;
+    late int start;
+
+    /// Kauf und Grabstein (weggewischter Eintrag) zum Zeitpunkt [s.now].
+    void buyAndRemove() {
+      s.alice.addToList(listId, spaghetti);
+      s.alice.setChecked(listId, spaghetti, true);
+      s.alice.clearChecked(listId);
+    }
+
+    setUp(() {
+      start = DateTime(2026, 1, 15).millisecondsSinceEpoch;
+      s.now = start;
+    });
+
+    test('Vorgabe 6 Monate, gilt für alle Geräte', () {
+      expect(s.alice.retentionMonths, Group.defaultRetentionMonths);
+      s.send(s.alice.setRetentionMonths(12), s.bob);
+      expect(s.bob.retentionMonths, 12);
+    });
+
+    test('Käufe und Grabsteine verfallen, Aktuelles bleibt', () {
+      buyAndRemove();
+      s.now = start + 100 * day;
+      buyAndRemove();
+      final entryId = '$listId/$spaghetti';
+      expect(s.alice.purchases, hasLength(2));
+
+      // 15.01. + 6 Monate = 15.07.; der erste Kauf ist dann älter.
+      final removed = s.alice.expire(DateTime(2026, 7, 20));
+      expect(removed, 1);
+      expect(s.alice.purchases.single.millis, start + 100 * day);
+      expect(s.alice.article(spaghetti), isNotNull);
+      expect(s.alice.lists, hasLength(1));
+
+      // Der Grabstein des Eintrags ist jünger (zweites Aufräumen) und bleibt.
+      expect(s.alice.replica.snapshot().any((c) => c.id == entryId), isTrue);
+      s.alice.expire(DateTime(2027, 1, 1));
+      expect(s.alice.purchases, isEmpty);
+      expect(
+        s.alice.replica.snapshot().any((c) => c.id == entryId),
+        isFalse,
+        reason: 'Grabstein verfallen',
+      );
+    });
+
+    test('Ohne automatisches Löschen bleibt alles', () {
+      buyAndRemove();
+      s.alice.setRetentionMonths(0);
+      expect(s.alice.expire(DateTime(2030)), 0);
+      expect(s.alice.purchases, hasLength(1));
+    });
+  });
+
   test('Change überlebt JSON-Rundreise', () {
     final c = s.alice
         .updateShop(s.alice.createShop('Famila').id, categoryOrder: ['x', 'y'])
