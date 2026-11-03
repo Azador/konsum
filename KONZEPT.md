@@ -147,6 +147,166 @@ Quelle nennen.
   unter „Einstellungen → Allgemein → Info → Zertifikatsvertrauenseinstellungen“
   aktivieren.
 
+## Datensparsamkeit
+
+Stand: 2026-11-03 · Status: **Konzept**, noch nicht umgesetzt
+
+Konsum soll nicht alles für immer speichern: Der Speicher auf dem Handy ist
+endlich, und vor allem soll eine Einkaufsliste von heute nicht in Jahren
+noch verraten, was jemand einmal kaufen wollte. Grundsatz: Erhalten bleibt,
+was die App anzeigt und der Benutzer selbst verwaltet. Was nicht mehr
+angezeigt wird oder als ungültig gilt, verschwindet nach festgelegten Regeln.
+Speicher, die eine Funktion braucht (z. B. die Käufe für Vorschläge), bleiben
+in der Software, werden aber durch definierte Löschaktionen bereinigt.
+
+### Datenklassen
+
+| Klasse | Daten | Aufbewahrung |
+|---|---|---|
+| **A – aktueller Stand** | Gruppen, Einkaufslisten, Artikel (mit Barcodes, Packungsgröße), Kategorien, Läden (mit Reihenfolge), Einträge, die gerade auf einer Liste stehen (auch abgehakte), private Notizen dazu | unbegrenzt, aber nur der **aktuelle** Wert; frühere Werte werden nicht gebraucht |
+| **B – sichtbar, vom Benutzer verwaltet** | Preishistorie | bis der Benutzer löscht; dann wirklich weg (siehe D) |
+| **C – unsichtbar, für Funktionen** | Käufe (entstehen beim Aufräumen; sortieren die Vorschläge, später Basis für wiederkehrende Artikel) | Verfall nach der Frist der Gruppe (siehe unten); möglichst knapp (Datum statt Millisekunde); sollen künftig sichtbar und löschbar werden („zuletzt gekauft“, „Kaufhistorie löschen“) |
+| **D – gelöscht / erledigt** | gelöschte Preise, aufgeräumte oder weggewischte Einträge, gelöschte Artikel, Listen, Läden, Kategorien, Barcodes | Inhalt **sofort** weg; übrig bleibt höchstens ein leerer Grabstein, der seinerseits verfällt |
+
+### Wo Daten liegen
+
+| Ort | Inhalt | Heute | Ziel |
+|---|---|---|---|
+| Konsum-Datenstand (lokal, `data/*.json`) | je Feld der letzte Wert mit Zeitstempel | Gelöschtes behält seinen ganzen Inhalt (`_deleted: true`), auch in jedem Schnappschuss | siehe „Lokaler Datenstand“ |
+| Datenbank der Matrix-Bibliothek (lokal) | empfangene Ereignisse **entschlüsselt**, dazu Schlüssel, Raumzustand, Sync-Position | Ereignisse werden nie entfernt | siehe „Matrix-Datenbank“ |
+| Matrix-Raum (auf **jedem** beteiligten Server, verschlüsselt) | jede Änderung, jeder Schnappschuss | nichts wird entfernt | Aufbewahrungsfrist des Raums |
+| Geräte und Clients anderer Mitglieder | wie der Raum | – | außerhalb unseres Einflusses; das Protokoll ist offen, wer mitschreiben will, kann das |
+| Android-Sicherung (Google) | gesamte App-Daten | aktiv | **bleibt aktiv** (2026-11-03): Benutzer erwarten, dass eine Sicherung die App wiederherstellt. Eine Matrix-Gruppe holt sich danach den aktuellen Stand aus dem Raum, eine lokale Gruppe kommt mit dem Stand der Sicherung zurück |
+
+### Aufbewahrungsfrist der Gruppe
+
+Pro Gruppe einstellbar: **1–24 Monate** oder **ohne automatisches Löschen**,
+Vorgabe **6 Monate** (reicht für Vorschläge und wiederkehrende Artikel).
+Dieselbe Frist gilt für
+
+- den Verfall der Käufe (Klasse C) und der Grabsteine (Klasse D) im lokalen
+  Datenstand,
+- die Ereignisse in der Datenbank der Matrix-Bibliothek (höchstens so lange,
+  siehe unten meist viel kürzer),
+- bei Matrix-Gruppen die Aufbewahrungsfrist des Raums (`m.room.retention`).
+
+Bei lokalen Gruppen gibt es die Einstellung auch, nur ohne Server-Teil.
+Verschwindet etwas unerwartet, lässt sich das mit der Frist erklären und dort
+abstellen.
+
+**Verfall statt Löschbefehl:** Jedes Gerät entfernt Käufe und Grabsteine,
+die älter als die Frist sind, selbstständig – ohne Grabstein, ohne etwas zu
+verschicken. Weil alle Geräte nach demselben Datum entscheiden, kommen sie
+von selbst zum selben Stand. Verfallenes gehört in keinen Schnappschuss.
+
+### Matrix-Raum: Aufbewahrungsfrist (Recherche 2026-11-03)
+
+- **Kein Heimatserver:** Jeder Server, auf dem ein Mitglied ein Konto hat,
+  hält eine vollständige Kopie des Raums. Die Frist ist eine gemeinsame
+  Raumeinstellung, aber **jeder Server setzt sie für seine Kopie selbst um** –
+  oder eben nicht. Der Hinweis in der App muss das sagen („gilt nur auf
+  Servern, die das unterstützen“).
+- **Standard:** MSC1763 („configurable retention periods“), noch nicht Teil
+  der Spezifikation. Zustandsereignis `m.room.retention` mit `max_lifetime`
+  in Millisekunden; setzen dürfen es Admins/Moderatoren des Raums.
+- **Synapse** (u. a. matrix.org): umgesetzt, aber **standardmäßig aus**
+  (`retention.enabled` in der Serverkonfiguration). Der Betreiber kann die
+  erlaubten Werte begrenzen (`allowed_lifetime_min/max`). Abgelaufene
+  Ereignisse werden sofort nicht mehr ausgeliefert und beim nächsten
+  Aufräumlauf gelöscht; das letzte Ereignis eines Raums und Zustandsereignisse
+  werden nie gelöscht. Ohne Raumeinstellung und ohne Server-Vorgabe wird nie
+  gelöscht.
+- **Erkennen, ob ein Server es kann:** Seit Synapse 1.156 (Juli 2026) gibt es
+  `GET /_matrix/client/unstable/org.matrix.msc1763/retention/configuration`,
+  nur wenn Retention **und** `experimental_features.msc1763_enabled` an sind.
+  matrix.org antwortet darauf mit `M_UNRECOGNIZED` (geprüft 2026-11-03), dort
+  ist es also nicht nutzbar bzw. nicht erkennbar. Fehlt der Endpunkt, zeigt
+  die App „vom Server nicht unterstützt“; die Raumeinstellung kann trotzdem
+  gesetzt werden, damit fähige Server sie beachten.
+- **Andere Server** (Conduit-Familie, Dendrite): in der Dokumentation keine
+  Unterstützung gefunden; nicht abschließend geprüft.
+- **Für Konsum unkritisch:** Konsum liest die Historie des Raums nie nach,
+  neue Geräte bitten um einen Schnappschuss. Löscht ein Server alte
+  Ereignisse, geht nichts kaputt.
+- Andere Werkzeuge, falls die Frist nicht greift: eigene Ereignisse
+  zurückziehen (Redaction; der Inhalt verschwindet auf dem Server, Clients
+  verwerfen ihn normalerweise), oder **Umzug** in einen frischen Raum mit dem
+  aktuellen Stand und Verlassen des alten (gründlich, aber neue Einladungen
+  und Schlüssel). Noch nicht entschieden.
+
+### Matrix-Datenbank (lokal)
+
+Konsum verarbeitet Ereignisse einmal beim Eintreffen (`sdk_transport.dart`),
+übernimmt sie in seinen Datenstand und **liest sie nie wieder** aus der
+Datenbank. Die Bibliothek speichert sie trotzdem, weil sie für Chat-Apps
+gebaut ist. Gebraucht werden aus der Datenbank nur Anmeldung, Schlüssel,
+Mitglieder, Raumzustand und Sync-Position.
+
+- Ziel: Konsum-Ereignisse löschen, **sobald sie übernommen sind**; Ereignisse,
+  die sich noch nicht entschlüsseln lassen, bleiben bis zur Entschlüsselung
+  oder bis die 2-Minuten-Regel einen Schnappschuss auslöst. Obergrenze in
+  jedem Fall die Frist der Gruppe.
+- Möglichkeiten der Bibliothek (matrix 14.2): `removeEvent(eventId, roomId)`
+  löscht ein einzelnes Ereignis samt Verweis in der Timeline;
+  `deleteTimelineForRoom` die Timeline-Verweise eines Raums; `clearCache`
+  verwirft Räume, Ereignisse und Sync-Position (erzwingt einen vollständigen
+  Sync, behält Anmeldung und Schlüssel). Zu beachten: Der Raum merkt sich
+  zusätzlich sein letztes Ereignis (`lastEvent`) mit Inhalt.
+- Die Datenbank gehört nur zu Matrix (Anmeldung, Schlüssel, Räume aller
+  Matrix-Gruppen in **einer** Datei `konsum_matrix.sqlite`); Konsums eigene
+  Daten liegen getrennt je Gruppe in `data/group-<id>.json`.
+- **Nur mit Anmeldung:** Heute wird die Datei bei jedem Start angelegt, auch
+  ohne Matrix. Künftig erst bei der Anmeldung; wer Matrix nicht nutzt, hat
+  keine SQLite-Datei.
+- **Abmelden:** Die Bibliothek leert heute nur die Tabellen. Künftig wird die
+  Datei danach ganz gelöscht (gleichwertig zu Leeren + `VACUUM`).
+- **Reste im freien Platz:** Gelöschte Zeilen bleiben in SQLite stehen, bis
+  ihr Platz wiederverwendet wird, und sind bis dahin mit forensischen
+  Werkzeugen lesbar. Statt `secure_delete` (unverhältnismäßig) schreibt die
+  App die Datei gelegentlich mit `VACUUM` neu, z. B. beim Start, wenn seit
+  dem letzten Mal genug gelöscht wurde. Kein Knopf, keine Einstellung.
+- Raumschlüssel (Megolm) bleiben auf dem Gerät und im Schlüssel-Backup auf
+  dem Server. Damit ließe sich alte, auf dem Server noch vorhandene Historie
+  entschlüsseln – ein weiterer Grund für die Frist im Raum.
+
+### Lokaler Datenstand
+
+- **Lokale Gruppen:** Gelöschtes wird sofort **vollständig** entfernt; ein
+  Grabstein ist unnötig, weil kein anderes Gerät es wiederbeleben kann. Käufe
+  verfallen nach der Frist.
+- **Matrix-Gruppen:** Beim Löschen bleibt nur der leere Grabstein (Kennung,
+  `_deleted`, Zeitstempel) – im Datenstand und in Schnappschüssen. Grabsteine
+  und Käufe verfallen nach der Frist.
+- **Bestand:** Beim ersten Start einer neuen Version werden vorhandene
+  Grabsteine geleert und Abgelaufenes entfernt.
+- **Abmelden von Matrix** (2026-11-03): Die App fragt, ob die
+  Matrix-Gruppen auf dem Gerät bleiben sollen.
+  - *Entfernen:* Datenstand der Gruppen wird gelöscht.
+  - *Behalten:* Die Gruppen werden zu **lokalen Gruppen** – ohne Verbindung
+    zum Raum, mit den Regeln für lokale Gruppen (Grabsteine entfallen). Beim
+    erneuten Anmelden kommen die Gruppen aus dem Konto als **neue**
+    Matrix-Gruppen dazu; die lokalen Kopien werden nicht wieder verbunden,
+    weil sich beide Seiten inzwischen unabhängig geändert haben können.
+    Damit zwei gleichnamige Gruppen unterscheidbar sind, bekommt die lokale
+    Kopie einen Zusatz im Namen, z. B. „Zuhause (lokal)“. Ist der Name
+    schon vergeben (auch von einer früheren Kopie), wird hochgezählt:
+    „Zuhause (lokal 2)“, „Zuhause (lokal 3)“, …
+  - Der Dialog sagt das ausdrücklich, etwa: „Die Gruppen bleiben als lokale
+    Kopie auf diesem Gerät, werden aber nicht mehr abgeglichen. Änderungen
+    daran erreichen die anderen Mitglieder nicht. Wenn du dich wieder
+    anmeldest, kommen die Gruppen neu dazu; die lokale Kopie bleibt getrennt
+    davon bestehen.“
+  - Hat eine Gruppe noch nicht gesendete Änderungen (offline), weist der
+    Dialog darauf hin: Sie erreichen die Gruppe nach dem Abmelden nicht mehr.
+- **Warteschlange** (noch nicht gesendete Änderungen): leert sich beim
+  Senden, nichts zu tun.
+- **Knifflig – Gerät länger offline als die Frist:** Es kennt womöglich
+  Objekte, deren Grabsteine anderswo schon verfallen sind, und würde sie per
+  Schnappschuss wiederbeleben. Vorschlag: Ein solches Gerät verschickt nichts
+  aus seinem alten Stand, sondern holt einen frischen Schnappschuss und
+  verwirft eigene Objekte, die dort fehlen und älter als die Frist sind.
+  Das braucht eine Ergänzung in PROTOKOLL.md.
+
 ## Entscheidungen
 
 - Sync-Backend: Matrix (2026-10-29)
@@ -211,6 +371,7 @@ Quelle nennen.
 
 ## Offene Punkte
 
+- Datensparsamkeit umsetzen (siehe Abschnitt oben), Reihenfolge noch offen
 - Web-App: Anmeldung im Browser (OIDC) braucht noch den Rückweg auf die
   eigene Seite; bis dahin nur Passwort
 - Geräte-Verifizierung, Schlüssel-Backup
