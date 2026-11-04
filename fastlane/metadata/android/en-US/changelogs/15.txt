@@ -1,0 +1,6 @@
+• Retention period per group: old purchases and traces of deleted items disappear automatically (default 6 months).
+• Deleted items no longer keep their content.
+• Logging out removes the Matrix data from the device; groups can be kept as a local copy.
+• Color scheme selectable per group.
+• More compact shopping list, translucent suggestions.
+• Store categories can be dragged by their handle right away.

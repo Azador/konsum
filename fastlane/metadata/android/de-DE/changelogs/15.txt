@@ -1,0 +1,6 @@
+• Aufbewahrungsfrist pro Gruppe: Alte Einkäufe und Spuren gelöschter Einträge verschwinden von selbst (Vorgabe 6 Monate).
+• Gelöschte Einträge behalten keinen Inhalt mehr.
+• Abmelden löscht die Matrix-Daten vom Gerät; die Gruppen lassen sich als lokale Kopie behalten.
+• Farbschema pro Gruppe wählbar.
+• Kompaktere Einkaufsliste, halbdurchsichtige Vorschläge.
+• Kategorien im Laden lassen sich am Griff sofort verschieben.

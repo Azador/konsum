@@ -36,6 +36,12 @@
       In der Web-App liegen die Daten im Speicher deines Browsers. Beim
       Deinstallieren der App bzw. Löschen der Website-Daten werden sie entfernt.
     </p>
+    <p>
+      Erledigte Einkäufe und die Spuren gelöschter Einträge entfernt die App
+      nach einer Aufbewahrungsfrist von selbst. Die Frist gilt pro Gruppe,
+      ist 6 Monate voreingestellt und lässt sich in den Gruppeneinstellungen
+      ändern oder abschalten. Gelöschte Einträge behalten keinen Inhalt.
+    </p>
 
     <h2>Abgleich über Matrix</h2>
     <p>
@@ -57,6 +63,13 @@
       der Gruppe nicht. Sie liegen in deinen persönlichen Kontodaten auf dem
       Server und sind dort <strong>nicht</strong> Ende-zu-Ende-verschlüsselt;
       der Betreiber des Servers könnte sie lesen.
+    </p>
+    <p>
+      Die Aufbewahrungsfrist der Gruppe trägt die App auch im Matrix-Raum ein
+      (<code>m.room.retention</code>). Ob der Server ältere Nachrichten dann
+      wirklich löscht, entscheidet sein Betreiber; <code>matrix.org</code>
+      tut es derzeit nicht. Die App zeigt in der Gruppenseite an, ob der
+      Server Fristen umsetzt.
     </p>
 
     <h2 id="konto-loeschen">Konto anlegen und löschen</h2>
@@ -96,8 +109,11 @@
         App selbst löschen.</li>
       <li><strong>Bei den Entwicklern von Konsum:</strong> nichts, denn sie
         haben keine Daten von dir.</li>
-      <li><strong>Auf dem Gerät:</strong> Abmelden entfernt die Zugangsdaten vom Gerät; deine Listen auf dem Gerät
-        verschwinden, wenn du die App deinstallierst.</li>
+      <li><strong>Auf dem Gerät:</strong> Abmelden entfernt die Zugangsdaten und die
+        Matrix-Datenbank vom Gerät. Vorher fragt die App, ob sie die
+        Matrix-Gruppen entfernen oder als lokale Kopie behalten soll. Deine
+        übrigen Listen auf dem Gerät verschwinden, wenn du die App
+        deinstallierst.</li>
     </ul>
 
     <h2>Produktdaten von Open Food Facts</h2>
