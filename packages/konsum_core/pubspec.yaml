@@ -1,6 +1,6 @@
 name: konsum_core
 description: Datenmodell und Konfliktauflösung für Konsum, unabhängig von UI und Sync-Backend.
-version: 0.1.1
+version: 0.2.0
 publish_to: none
 
 environment:
