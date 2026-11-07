@@ -425,13 +425,15 @@ entfernt. Die Frist wird kalendarisch berechnet (heute minus N Monate).
 ### Einheiten
 
 `pcs` (Stück), `g`, `kg`, `ml`, `l`, `pack` (Packung), `can` (Dose),
-`bottle` (Flasche), `bunch` (Bund). `g`, `kg`, `ml`, `l` sind Maße, der Rest
-Zähleinheiten. Grundeinheiten für Preise: `kg` für Gewicht, `l` für Volumen,
-sonst die Zähleinheit; bei Zähleinheiten mit `packSize` in einem Maß wird
-über das Maß gerechnet, mit `packSize` in `pcs` (z. B. Packung mit 6 Stück)
-über die Stückzahl mit Grundeinheit `pcs`. `pcs` je `pcs` wird ignoriert.
-Ältere Clients kennen `pcs` als `packUnit` nicht und rechnen dann in der
-Zähleinheit. Unbekannte Einheiten anderer Clients bitte als Text
+`bottle` (Flasche), `bunch` (Bund), `crate` (Kiste). `g`, `kg`, `ml`, `l`
+sind Maße, der Rest Zähleinheiten. Grundeinheiten für Preise: `kg` für
+Gewicht, `l` für Volumen, sonst die Zähleinheit; bei Zähleinheiten mit
+`packSize` in einem Maß wird über das Maß gerechnet, mit `packSize` in `pcs`
+oder `bottle` (z. B. Packung mit 6 Stück, Kiste mit 20 Flaschen) über deren
+Anzahl mit Grundeinheit `pcs` bzw. `bottle`. Eine Einheit je derselben
+Einheit (`pcs` je `pcs`, `bottle` je `bottle`) wird ignoriert. Ältere
+Clients kennen `pcs` bzw. `bottle` als `packUnit` nicht und rechnen dann in
+der Zähleinheit. Unbekannte Einheiten anderer Clients bitte als Text
 anzeigen.
 
 ### Private Daten: `note`

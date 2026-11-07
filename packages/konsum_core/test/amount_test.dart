@@ -52,6 +52,26 @@ void main() {
       ),
       (amount: 3, unit: Units.piece),
     );
+    // Kiste mit 20 Flaschen: Preis je Flasche.
+    expect(
+      baseAmount(
+        quantity: 2,
+        unit: Units.crate,
+        packSize: 20,
+        packUnit: Units.bottle,
+      ),
+      (amount: 40, unit: Units.bottle),
+    );
+    // Flasche je Flasche zählt nicht.
+    expect(
+      baseAmount(
+        quantity: 3,
+        unit: Units.bottle,
+        packSize: 6,
+        packUnit: Units.bottle,
+      ),
+      (amount: 3, unit: Units.bottle),
+    );
     // Andere Zähleinheiten als Inhalt zählen nicht.
     expect(baseAmount(quantity: 2, packSize: 6, packUnit: Units.can), (
       amount: 2,
