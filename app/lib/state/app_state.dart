@@ -57,6 +57,11 @@ class AppState extends ChangeNotifier {
       (json['shops'] as Map? ?? const {}).cast<String, String>(),
     );
     state._showChecked = json['showChecked'] as bool? ?? true;
+    // Ohne Setter: der würde speichern, bevor alles geladen ist.
+    state._automatic = json['automatic'] as bool? ?? false;
+    for (final g in state._groups) {
+      g.group.automatic = state._automatic;
+    }
     state._colors.addAll(
       (json['colors'] as Map? ?? const {}).cast<String, int>(),
     );
@@ -81,6 +86,7 @@ class AppState extends ChangeNotifier {
   String? _groupId;
   String? _listId;
   bool _showChecked = true;
+  bool _automatic = false;
 
   List<GroupSession> get groups => List.unmodifiable(_groups);
 
@@ -90,6 +96,19 @@ class AppState extends ChangeNotifier {
   String? get currentListId => _listId;
 
   bool get showChecked => _showChecked;
+
+  /// Automatik für wiederkehrende Artikel; eine Einstellung dieses Geräts,
+  /// nicht der Gruppen. Vorgabe: aus.
+  bool get automatic => _automatic;
+
+  set automatic(bool on) {
+    _automatic = on;
+    for (final g in _groups) {
+      g.group.automatic = on;
+      g.autoAdd();
+    }
+    _changed();
+  }
 
   /// Gewählter Laden einer Gruppe (bestimmt die Sortierung).
   String? shopFor(GroupSession g) {
@@ -226,11 +245,13 @@ class AppState extends ChangeNotifier {
   Future<void> flushAll() async {
     for (final g in _groups) {
       g.expire();
+      g.autoAdd();
       await g.flush();
     }
   }
 
   void _add(GroupSession s) {
+    s.group.automatic = _automatic;
     _groups.add(s);
     s.addListener(_onGroupChanged);
   }
@@ -274,6 +295,7 @@ class AppState extends ChangeNotifier {
       'listId': _listId,
       'shops': _shops,
       'showChecked': _showChecked,
+      'automatic': _automatic,
       'colors': _colors,
     }),
   );

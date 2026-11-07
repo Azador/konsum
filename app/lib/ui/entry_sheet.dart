@@ -3,6 +3,7 @@ import 'package:konsum_core/konsum_core.dart';
 
 import '../state/group_session.dart';
 import 'article_page.dart';
+import 'auto_span.dart';
 import 'format.dart';
 import 'unit_field.dart';
 
@@ -79,13 +80,46 @@ class _EntrySheetState extends State<_EntrySheet> {
   num? get _packSizeValue =>
       Units.isCount(_unit) ? parseNumber(_packSize.text) : null;
 
-  /// Menge in der Grundeinheit nach den aktuellen Eingaben.
-  BaseAmount? get _base => baseAmount(
-    quantity: parseNumber(_quantity.text),
-    unit: _unit,
-    packSize: _packSizeValue,
-    packUnit: _packUnit,
-  );
+  /// Was die Automatik vorschlägt (beim Öffnen berechnet).
+  Amount? get _auto => widget.entry.autoAmount;
+
+  /// Geltende Menge in der Grundeinheit nach den aktuellen Eingaben: die
+  /// eigene, ohne sie die der Automatik (siehe [ListEntry.effectiveAmount]).
+  BaseAmount? get _base {
+    final entry = ListEntry(
+      listId: widget.entry.listId,
+      articleId: widget.entry.articleId,
+      quantity: parseNumber(_quantity.text),
+      unit: _unit,
+      packSize: _packSizeValue,
+      packUnit: _packUnit,
+      autoAmount: _auto,
+    );
+    final effective = entry.effectiveBase;
+    // Andere Einheit als die der Automatik: nur die eigene Menge zählt.
+    return effective?.unit == _baseUnit ? effective : entry.base;
+  }
+
+  /// Schritt der Plus-/Minus-Tasten: eine Packung, Kiste, Flasche, ein
+  /// Stück; bei Gewicht und Volumen 1 kg/l bzw. 100 g/ml.
+  num get _step => switch (_unit) {
+    Units.gram || Units.millilitre => 100,
+    _ => 1,
+  };
+
+  /// Menge, von der Plus und Minus ausgehen: die eingetragene, sonst die
+  /// der Automatik (in derselben Einheit), sonst bei Zähleinheiten 1.
+  num get _current =>
+      parseNumber(_quantity.text) ??
+      (_auto?.unit == _unit ? _auto!.quantity : null) ??
+      (Units.isCount(_unit) ? 1 : 0);
+
+  void _stepBy(int direction) {
+    final next = ((_current + direction * _step) * 1000).round() / 1000;
+    if (next <= 0) return;
+    _quantity.text = formatQuantity(next, null);
+    _amountChanged();
+  }
 
   /// Grundeinheit, auch wenn die Menge (noch) fehlt.
   String get _baseUnit => baseAmount(
@@ -251,16 +285,40 @@ class _EntrySheetState extends State<_EntrySheet> {
             ),
             const SizedBox(height: 12),
             Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Expanded(
                   child: TextField(
                     controller: _quantity,
+                    textAlign: TextAlign.center,
                     keyboardType: const TextInputType.numberWithOptions(
                       decimal: true,
                     ),
-                    decoration: const InputDecoration(
+                    decoration: InputDecoration(
                       labelText: 'Menge',
-                      border: OutlineInputBorder(),
+                      // Leer: Es gilt die Menge der Automatik.
+                      hintText: _auto?.unit == _unit
+                          ? formatQuantity(_auto!.quantity, null)
+                          : null,
+                      helper: switch (_auto) {
+                        final a? => Text.rich(
+                          autoSpan(context, 'automatisch ${formatAmountOf(a)}'),
+                        ),
+                        null => null,
+                      },
+                      border: const OutlineInputBorder(),
+                      prefixIcon: IconButton(
+                        tooltip: 'Weniger',
+                        icon: const Icon(Icons.remove),
+                        onPressed: _current - _step > 0
+                            ? () => _stepBy(-1)
+                            : null,
+                      ),
+                      suffixIcon: IconButton(
+                        tooltip: 'Mehr',
+                        icon: const Icon(Icons.add),
+                        onPressed: () => _stepBy(1),
+                      ),
                     ),
                     onChanged: (_) => _amountChanged(),
                   ),
@@ -322,10 +380,10 @@ class _EntrySheetState extends State<_EntrySheet> {
                     keyboardType: const TextInputType.numberWithOptions(
                       decimal: true,
                     ),
-                    decoration: const InputDecoration(
+                    decoration: InputDecoration(
                       labelText: 'Preis (€)',
                       helperText: 'für diese Menge',
-                      border: OutlineInputBorder(),
+                      border: const OutlineInputBorder(),
                     ),
                     onChanged: _priceChanged,
                   ),

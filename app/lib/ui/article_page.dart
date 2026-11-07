@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:konsum_core/konsum_core.dart';
 
 import '../services/open_food_facts.dart';
 import '../state/group_session.dart';
@@ -7,12 +8,13 @@ import 'dialogs.dart';
 import 'format.dart';
 import 'pack_size_dialog.dart';
 import 'price_dialog.dart';
+import 'purchases_page.dart';
 import 'scan.dart';
 import 'scope.dart';
 import 'unit_field.dart';
 
-/// Einzelner Artikel: Name, Kategorie, Standardeinheit, Barcodes,
-/// Preishistorie, endgültiges Löschen.
+/// Einzelner Artikel: Name, Kategorie, Standardeinheit, wiederkehrend,
+/// Barcodes, Preishistorie, Käufe, endgültiges Löschen.
 class ArticlePage extends StatelessWidget {
   const ArticlePage({
     super.key,
@@ -25,7 +27,7 @@ class ArticlePage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    AppScope.of(context);
+    final app = AppScope.of(context);
     final group = session.group;
     final article = group.article(articleId);
     if (article == null) {
@@ -35,6 +37,7 @@ class ArticlePage extends StatelessWidget {
       );
     }
     final prices = group.priceHistory(articleId: articleId);
+    final purchases = group.purchasesOf(articleId: articleId);
     final barcodes = group.barcodesOf(articleId);
     final heading = Theme.of(context).textTheme.titleMedium;
 
@@ -65,7 +68,8 @@ class ArticlePage extends StatelessWidget {
                 title: '„${article.name}“ endgültig löschen?',
                 message:
                     'Der Artikel verschwindet für alle in der Gruppe, '
-                    'samt Barcodes, Listeneinträgen und Preishistorie.',
+                    'samt Barcodes, Listeneinträgen, Preishistorie und '
+                    'Käufen.',
               )) {
                 session.apply(group.deleteArticle(articleId));
                 if (context.mounted) Navigator.pop(context);
@@ -124,6 +128,23 @@ class ArticlePage extends StatelessWidget {
                 }),
               );
             },
+          ),
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            secondary: const Icon(Icons.autorenew),
+            title: const Text('Wiederkehrend'),
+            subtitle: Text(
+              _recurringNote(
+                group.consumption(articleId),
+                group.autoAmountFor(articleId),
+                automatic: app.automatic,
+                excluded: article.autoExcluded,
+              ),
+            ),
+            value: !article.autoExcluded,
+            onChanged: (on) => session.apply(
+              group.updateArticle(articleId, {'autoExcluded': !on}),
+            ),
           ),
           const SizedBox(height: 24),
           Row(
@@ -205,9 +226,69 @@ class ArticlePage extends StatelessWidget {
                 onPressed: () => session.apply(group.deletePrice(p.id)),
               ),
             ),
+          const SizedBox(height: 24),
+          Row(
+            children: [
+              Expanded(child: Text('Käufe', style: heading)),
+              if (purchases.isNotEmpty)
+                TextButton(
+                  onPressed: () async {
+                    if (await confirm(
+                      context,
+                      title: 'Käufe von „${article.name}“ löschen?',
+                      message:
+                          'Vorschläge und wiederkehrende Menge fangen für '
+                          'diesen Artikel von vorn an.',
+                    )) {
+                      session.apply(
+                        group.deletePurchases(articleId: articleId),
+                      );
+                    }
+                  },
+                  child: const Text('Alle löschen'),
+                ),
+            ],
+          ),
+          if (purchases.isEmpty)
+            const Text(
+              'Noch keine Käufe. Abgehakte Einträge werden beim Aufräumen '
+              'der Liste als Kauf verbucht.',
+            ),
+          for (final p in purchases)
+            PurchaseTile(session: session, purchase: p),
         ],
       ),
     );
+  }
+
+  /// Erklärt, was die Automatik für den Artikel weiß und vorschlägt.
+  static String _recurringNote(
+    Consumption? c,
+    Amount? now, {
+    required bool automatic,
+    required bool excluded,
+  }) {
+    if (excluded) return 'Von der Automatik ausgenommen';
+    final parts = <String>[
+      if (!automatic) 'Automatik ist auf diesem Gerät aus (im Menü)',
+      if (c == null)
+        'Noch zu wenige Käufe mit Menge, um den Verbrauch zu schätzen'
+      else
+        'Verbrauch ca. ${_rate(c.perDay, c.unit)} · zuletzt gekauft am '
+            '${formatDate(c.last.millis)}',
+      if (now != null) 'seitdem verbraucht: ${formatAmountOf(now)}',
+    ];
+    return parts.join(' · ');
+  }
+
+  /// „4 l pro Woche“, bei wenig Verbrauch pro Monat.
+  static String _rate(double perDay, String unit) {
+    final week = perDay * 7;
+    final (amount, per) = week >= 0.5
+        ? (week, 'Woche')
+        : (perDay * 30, 'Monat');
+    final rounded = amount >= 10 ? amount.round() : (amount * 10).round() / 10;
+    return '${formatQuantity(rounded, unit)} pro $per';
   }
 }
 

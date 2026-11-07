@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 
+import 'amount.dart';
 import 'hlc.dart';
 import 'model.dart';
 import 'replica.dart';
@@ -10,13 +11,26 @@ import 'replica.dart';
 /// [Change]s, die das Sync-Backend an die anderen Geräte verteilt.
 /// Eingehende Änderungen werden mit [receive] übernommen.
 class Group {
-  Group(this.clock, {Replica? replica, math.Random? random})
-    : replica = replica ?? Replica(),
-      _random = random ?? math.Random.secure();
+  Group(
+    this.clock, {
+    Replica? replica,
+    math.Random? random,
+    DateTime Function()? now,
+  }) : replica = replica ?? Replica(),
+       _random = random ?? math.Random.secure(),
+       now = now ?? DateTime.now;
 
   final HlcClock clock;
   final Replica replica;
   final math.Random _random;
+
+  /// Uhr für die Automatik; in Tests ersetzbar.
+  final DateTime Function() now;
+
+  /// Automatik für wiederkehrende Artikel an (eine Einstellung des Geräts,
+  /// nicht der Gruppe): Einträge bekommen eine [ListEntry.autoAmount],
+  /// [autoAdd] setzt fällige Artikel auf die Liste.
+  bool automatic = false;
 
   void receive(Iterable<Change> changes) {
     for (final c in changes) {
@@ -120,6 +134,8 @@ class Group {
   /// alphabetisch.
   List<ListEntry> entries(String listId, {String? shopId}) {
     final result = <ListEntry>[];
+    final bought = automatic ? _purchasesByArticle() : null;
+    final at = now().millisecondsSinceEpoch;
     for (final id in replica.ids(Types.entry)) {
       final f = replica.get(Types.entry, id)!;
       if (f['listId'] != listId) continue;
@@ -141,6 +157,10 @@ class Group {
           price: f['price'] as int?,
           basePrice: f['basePrice'] as num?,
           checked: f['checked'] == true,
+          autoAdded: f['autoAdded'] == true,
+          autoAmount: bought == null || a.autoExcluded
+              ? null
+              : _consumption(bought[articleId])?.needed(at),
         ),
       );
     }
@@ -160,6 +180,16 @@ class Group {
     return result;
   }
 
+  /// Käufe, neueste zuerst; optional nur für einen Artikel.
+  List<Purchase> purchasesOf({String? articleId}) {
+    final result = [
+      for (final p in purchases)
+        if (articleId == null || p.articleId == articleId) p,
+    ];
+    result.sort((a, b) => b.millis.compareTo(a.millis));
+    return result;
+  }
+
   List<Purchase> get purchases => [
     for (final id in replica.ids(Types.purchase))
       if (replica.get(Types.purchase, id) case final f?)
@@ -169,8 +199,162 @@ class Group {
           listId: f['listId'] as String,
           millis: f['millis'] as int,
           shopId: f['shopId'] as String?,
+          // Ältere Versionen haben keine Menge gespeichert, auch keine
+          // Einheit; seitdem steht die Einheit immer da.
+          amount: f['unit'] is String
+              ? Amount(
+                  quantity: f['quantity'] as num?,
+                  unit: f['unit'] as String,
+                  packSize: f['packSize'] as num?,
+                  packUnit: f['packUnit'] as String?,
+                )
+              : null,
         ),
   ];
+
+  // ------------------------------------------------- wiederkehrende Artikel
+
+  /// Verbrauch eines Artikels aus seinen Käufen mit bekannter Menge, oder
+  /// null, wenn es dafür (noch) zu wenige gibt.
+  Consumption? consumption(String articleId) =>
+      _consumption(_purchasesByArticle()[articleId]);
+
+  /// Was die Automatik für den Artikel jetzt vorschlägt: der Verbrauch seit
+  /// dem letzten Kauf. Null, wenn sie aus ist, der Artikel ausgenommen ist
+  /// oder nichts bekannt ist.
+  Amount? autoAmountFor(String articleId) {
+    if (!automatic || (article(articleId)?.autoExcluded ?? true)) return null;
+    return consumption(articleId)?.needed(now().millisecondsSinceEpoch);
+  }
+
+  /// Setzt fällige wiederkehrende Artikel auf eine Liste (die ihres letzten
+  /// Kaufs), sofern sie auf keiner Liste stehen. Ein Artikel ist fällig,
+  /// wenn seit dem letzten Kauf die Hälfte eines üblichen Kaufs verbraucht
+  /// ist. Hat jemand einen automatisch gesetzten Eintrag von der
+  /// Liste genommen, kommt der Artikel erst nach dem nächsten Kauf oder
+  /// einem üblichen Abstand zwischen zwei Käufen wieder.
+  ///
+  /// Die Menge bleibt leer: Sie wird bei jeder Abfrage neu berechnet und
+  /// wächst so mit der Zeit mit.
+  List<Change> autoAdd() {
+    if (!automatic) return const [];
+    final listIds = {for (final l in lists) l.id};
+    if (listIds.isEmpty) return const [];
+    final onList = {
+      for (final id in replica.ids(Types.entry))
+        replica.get(Types.entry, id)!['articleId'],
+    };
+    final at = now().millisecondsSinceEpoch;
+    final changes = <Change>[];
+    for (final MapEntry(key: articleId, value: bought)
+        in _purchasesByArticle().entries) {
+      final a = article(articleId);
+      if (a == null || a.autoExcluded || onList.contains(articleId)) continue;
+      final c = _consumption(bought);
+      final needed = c?.needed(at);
+      if (c == null || needed == null || !c.isDue(at)) continue;
+      final dismissed =
+          (replica.get(Types.article, articleId)!['autoDismissed'] as num?)
+              ?.toInt();
+      if (dismissed != null &&
+          dismissed > c.last.millis &&
+          at - dismissed < c.interval.inMilliseconds) {
+        continue;
+      }
+      final listId =
+          bought.map((p) => p.listId).where(listIds.contains).lastOrNull ??
+          lists.first.id;
+      changes.addAll(
+        _write(Types.entry, ListEntry.entryId(listId, articleId), {
+          'listId': listId,
+          'articleId': articleId,
+          'quantity': null,
+          'unit': needed.unit,
+          'packSize': needed.packSize,
+          'packUnit': needed.packUnit,
+          'note': null,
+          'price': null,
+          'basePrice': null,
+          'checked': false,
+          'autoAdded': true,
+          deletedField: false,
+        }),
+      );
+    }
+    return changes;
+  }
+
+  /// Käufe je Artikel, älteste zuerst.
+  Map<String, List<Purchase>> _purchasesByArticle() {
+    final result = <String, List<Purchase>>{};
+    for (final p in purchases) {
+      (result[p.articleId] ??= []).add(p);
+    }
+    for (final list in result.values) {
+      list.sort((a, b) => a.millis.compareTo(b.millis));
+    }
+    return result;
+  }
+
+  /// Berechnet den Verbrauch aus Käufen (älteste zuerst). Zählt nur Käufe
+  /// in der Grundeinheit des letzten Kaufs; Käufe, die weniger als einen Tag
+  /// auseinanderliegen, gelten als einer.
+  ///
+  /// Je Abstand zwischen zwei Käufen gilt das zuerst Gekaufte bis zum
+  /// nächsten Kauf als verbraucht. Der Verbrauch ist der **Median** dieser
+  /// Werte, damit einzelne Ausreißer (Reise, Einkauf für ein Fest) kaum
+  /// zählen.
+  static Consumption? _consumption(List<Purchase>? bought) {
+    if (bought == null) return null;
+    final known = [
+      for (final p in bought)
+        if (p.amount?.base case final base? when base.amount > 0)
+          (purchase: p, base: base),
+    ];
+    if (known.isEmpty) return null;
+    final unit = known.last.base.unit;
+    final buys = <({int millis, double amount})>[];
+    for (final k in known.where((k) => k.base.unit == unit)) {
+      final amount = k.base.amount.toDouble();
+      final previous = buys.lastOrNull;
+      if (previous != null &&
+          k.purchase.millis - previous.millis < Duration.millisecondsPerDay) {
+        // Der Abstand zählt ab dem ersten davon.
+        buys.last = (millis: previous.millis, amount: previous.amount + amount);
+      } else {
+        buys.add((millis: k.purchase.millis, amount: amount));
+      }
+    }
+    if (buys.length < 2) return null;
+    final perDay = <double>[];
+    final intervals = <double>[];
+    for (var i = 0; i < buys.length - 1; i++) {
+      final days =
+          (buys[i + 1].millis - buys[i].millis) / Duration.millisecondsPerDay;
+      perDay.add(buys[i].amount / days);
+      intervals.add(days);
+    }
+    final amounts = [for (final b in buys) b.amount];
+    return Consumption(
+      last: known.last.purchase,
+      unit: unit,
+      perDay: _median(perDay),
+      typical: _median(amounts),
+      largest: amounts.reduce(math.max),
+      interval: Duration(
+        milliseconds: (_median(intervals) * Duration.millisecondsPerDay)
+            .round(),
+      ),
+    );
+  }
+
+  static double _median(List<double> values) {
+    final sorted = [...values]..sort();
+    final mid = sorted.length ~/ 2;
+    return sorted.length.isOdd
+        ? sorted[mid]
+        : (sorted[mid - 1] + sorted[mid]) / 2;
+  }
 
   /// Preishistorie, neueste zuerst; optional nur für einen Artikel und/oder Laden.
   List<PricePoint> priceHistory({String? articleId, String? shopId}) {
@@ -213,7 +397,7 @@ class Group {
     if (own != null) return own;
     final last = lastPrice(entry.articleId, shopId: shopId);
     final lastBase = last?.basePriceCents;
-    final base = entry.base;
+    final base = entry.effectiveBase;
     if (lastBase == null || base == null || last!.base!.unit != base.unit) {
       return null;
     }
@@ -371,7 +555,10 @@ class Group {
     String? note,
   }) {
     final a = article(articleId);
-    return _write(Types.entry, ListEntry.entryId(listId, articleId), {
+    final id = ListEntry.entryId(listId, articleId);
+    // Nur wenn nötig, damit das Format für andere Clients gleich bleibt.
+    final wasAuto = replica.get(Types.entry, id)?['autoAdded'] == true;
+    return _write(Types.entry, id, {
       'listId': listId,
       'articleId': articleId,
       'quantity': quantity,
@@ -382,6 +569,7 @@ class Group {
       'price': null,
       'basePrice': null,
       'checked': false,
+      if (wasAuto) 'autoAdded': false,
       deletedField: false,
     });
   }
@@ -399,23 +587,42 @@ class Group {
         'checked': checked,
       });
 
-  /// Entfernt einen Eintrag ohne ihn als gekauft zu verbuchen.
-  List<Change> removeFromList(String listId, String articleId) =>
-      _delete(Types.entry, ListEntry.entryId(listId, articleId));
+  /// Entfernt einen Eintrag ohne ihn als gekauft zu verbuchen. War er
+  /// automatisch gesetzt, merkt sich der Artikel das, damit die Automatik
+  /// ihn nicht gleich wieder auf die Liste setzt (siehe [autoAdd]).
+  List<Change> removeFromList(String listId, String articleId) {
+    final id = ListEntry.entryId(listId, articleId);
+    final auto = replica.get(Types.entry, id)?['autoAdded'] == true;
+    return [
+      if (auto && article(articleId) != null)
+        ..._write(Types.article, articleId, {
+          'autoDismissed': now().millisecondsSinceEpoch,
+        }),
+      ..._delete(Types.entry, id),
+    ];
+  }
 
   /// Verbucht alle abgehakten Einträge als Kauf (im Laden [shopId], falls
-  /// bekannt) und entfernt sie von der Liste. Eingetragene Preise wandern in
-  /// die Preishistorie.
+  /// bekannt) mit der geltenden Menge ([ListEntry.effectiveAmount]) und
+  /// entfernt sie von der Liste. Eingetragene Preise wandern in die
+  /// Preishistorie.
   List<Change> clearChecked(String listId, {String? shopId}) {
     final changes = <Change>[];
     for (final e in entries(listId).where((e) => e.checked)) {
       final millis = clock.tick().millis;
+      final amount = e.effectiveAmount;
+      final unit = amount.unit ?? Units.pack;
+      final count = Units.isCount(unit);
       changes.addAll(
         _write(Types.purchase, _newId(), {
           'articleId': e.articleId,
           'listId': listId,
           'millis': millis,
           'shopId': shopId,
+          'quantity': amount.quantity,
+          'unit': unit,
+          'packSize': count ? amount.packSize : null,
+          'packUnit': count && amount.packSize != null ? amount.packUnit : null,
         }),
       );
       if (e.totalCents case final cents?) {
@@ -423,10 +630,10 @@ class Group {
           recordPrice(
             e.articleId,
             cents,
-            quantity: e.quantity,
-            unit: e.unit,
-            packSize: Units.isCount(e.unit) ? e.packSize : null,
-            packUnit: Units.isCount(e.unit) ? e.packUnit : null,
+            quantity: amount.quantity,
+            unit: amount.unit,
+            packSize: count ? amount.packSize : null,
+            packUnit: count ? amount.packUnit : null,
             shopId: shopId,
           ).changes,
         );
@@ -464,6 +671,27 @@ class Group {
 
   List<Change> deletePrice(String id) => _delete(Types.price, id);
 
+  List<Change> deletePurchase(String id) => _delete(Types.purchase, id);
+
+  /// Korrigiert die gekaufte Menge, z. B. wenn es weniger war als auf der
+  /// Liste stand.
+  List<Change> updatePurchase(String id, Amount amount) {
+    final unit = amount.unit ?? Units.pack;
+    final count = Units.isCount(unit);
+    return _write(Types.purchase, id, {
+      'quantity': amount.quantity,
+      'unit': unit,
+      'packSize': count ? amount.packSize : null,
+      'packUnit': count && amount.packSize != null ? amount.packUnit : null,
+    });
+  }
+
+  /// Löscht die Kaufhistorie, optional nur für einen Artikel.
+  List<Change> deletePurchases({String? articleId}) => [
+    for (final p in purchasesOf(articleId: articleId))
+      ..._delete(Types.purchase, p.id),
+  ];
+
   /// Löscht die Preishistorie, optional nur für einen Artikel und/oder Laden.
   List<Change> deletePriceHistory({String? articleId, String? shopId}) => [
     for (final p in priceHistory(articleId: articleId, shopId: shopId))
@@ -499,6 +727,7 @@ class Group {
           defaultUnit: f['defaultUnit'] as String?,
           packSize: f['packSize'] as num?,
           packUnit: f['packUnit'] as String?,
+          autoExcluded: f['autoExcluded'] == true,
         );
 
   Shop? _shop(String id) {
@@ -517,4 +746,75 @@ class Group {
       items..sort(
         (a, b) => name(a).toLowerCase().compareTo(name(b).toLowerCase()),
       );
+}
+
+/// Verbrauch eines Artikels, geschätzt aus seinen Käufen: Was gekauft
+/// wurde, gilt bis zum nächsten Kauf als verbraucht.
+class Consumption {
+  const Consumption({
+    required this.last,
+    required this.unit,
+    required this.perDay,
+    required this.typical,
+    required this.largest,
+    required this.interval,
+  });
+
+  /// Letzter Kauf; nach ihm gilt der Vorrat als aufgefüllt.
+  final Purchase last;
+
+  /// Grundeinheit (kg, l, Stück, …) der Mengen.
+  final String unit;
+
+  /// Verbrauch je Tag in [unit] (Median über die Abstände der Käufe).
+  final double perDay;
+
+  /// Übliche Menge eines Kaufs in [unit] (Median).
+  final double typical;
+
+  /// Größte Menge eines Kaufs in [unit]. Mehr schlägt die Automatik nie
+  /// vor, auch nach langer Pause nicht: Mehr Vorrat hatte man nie.
+  final double largest;
+
+  /// Üblicher Abstand zwischen zwei Käufen (Median).
+  final Duration interval;
+
+  /// Verbrauch seit dem letzten Kauf bis [millis] in [unit], höchstens
+  /// [largest].
+  double neededBase(int millis) => math.min(
+    largest,
+    math.max(0, millis - last.millis) / Duration.millisecondsPerDay * perDay,
+  );
+
+  /// Fällig: Seit dem letzten Kauf ist mindestens die Hälfte eines üblichen
+  /// Kaufs verbraucht.
+  bool isDue(int millis) => neededBase(millis) >= typical / 2;
+
+  /// [neededBase] in der Einheit des letzten Kaufs, gerundet: Zähleinheiten
+  /// auf ganze, kg/l auf Zehntel, g/ml auf zehn. Null, wenn das 0 ergibt.
+  Amount? needed(int millis) {
+    final template = last.amount!;
+    final unit = template.unit ?? Units.pack;
+    final perUnit = baseAmount(
+      quantity: 1,
+      unit: unit,
+      packSize: Units.isCount(unit) ? template.packSize : null,
+      packUnit: template.packUnit,
+    )!.amount;
+    final raw = neededBase(millis) / perUnit;
+    final num quantity = switch (unit) {
+      Units.kilogram || Units.litre => (raw * 10).round() / 10,
+      Units.gram || Units.millilitre => (raw / 10).round() * 10,
+      _ => raw.round(),
+    };
+    if (quantity <= 0) return null;
+    return Amount(
+      quantity: quantity,
+      unit: unit,
+      packSize: Units.isCount(unit) ? template.packSize : null,
+      packUnit: Units.isCount(unit) && template.packSize != null
+          ? template.packUnit
+          : null,
+    );
+  }
 }

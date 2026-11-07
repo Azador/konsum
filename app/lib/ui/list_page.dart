@@ -3,6 +3,7 @@ import 'package:konsum_core/konsum_core.dart';
 
 import '../services/open_food_facts.dart';
 import '../state/group_session.dart';
+import 'auto_span.dart';
 import 'dialogs.dart';
 import 'drawer.dart';
 import 'entry_sheet.dart';
@@ -400,26 +401,44 @@ class _EntryTile extends StatelessWidget {
     final privateNote = session.private.note(entry.id);
     final price = group.estimatedPrice(entry, shopId: shopId);
     final estimated = entry.totalCents == null;
-    final base = entry.base;
+    final base = entry.effectiveBase;
     final basePrice = estimated
         ? group.lastPrice(entry.articleId, shopId: shopId)?.basePriceCents
         : entry.basePriceCents;
-    final details = [
-      ?formatAmount(
-        quantity: entry.quantity,
-        unit: entry.unit,
-        packSize: entry.packSize,
-        packUnit: entry.packUnit,
-      ),
-      ?entry.note,
-      if (privateNote != null) '🔒 $privateNote',
-    ].where((s) => s.isNotEmpty).join(' · ');
     final muted = entry.checked
         ? TextStyle(
             decoration: TextDecoration.lineThrough,
             color: Theme.of(context).disabledColor,
           )
         : null;
+    // Was die Automatik sagt, getrennt von der Menge von Hand.
+    final auto = switch (entry.autoAmount) {
+      final a? => 'automatisch ${formatAmountOf(a)}',
+      null when entry.autoAdded => 'automatisch hinzugefügt',
+      null => null,
+    };
+    final parts = <InlineSpan>[
+      if (formatAmount(
+            quantity: entry.quantity,
+            unit: entry.unit,
+            packSize: entry.packSize,
+            packUnit: entry.packUnit,
+          )
+          case final amount?)
+        TextSpan(text: amount),
+      if (auto != null) autoSpan(context, auto, muted),
+      for (final text in [
+        ?entry.note,
+        if (privateNote != null) '🔒 $privateNote',
+      ])
+        if (text.isNotEmpty) TextSpan(text: text),
+    ];
+    final details = [
+      for (final (i, part) in parts.indexed) ...[
+        if (i > 0) const TextSpan(text: ' · '),
+        part,
+      ],
+    ];
 
     return Dismissible(
       key: ValueKey(entry.id),
@@ -442,7 +461,9 @@ class _EntryTile extends StatelessWidget {
           group.setChecked(entry.listId, entry.articleId, v ?? false),
         ),
         title: Text(article.name, style: muted),
-        subtitle: details.isEmpty ? null : Text(details, style: muted),
+        subtitle: details.isEmpty
+            ? null
+            : Text.rich(TextSpan(children: details), style: muted),
         secondary: Row(
           mainAxisSize: MainAxisSize.min,
           children: [

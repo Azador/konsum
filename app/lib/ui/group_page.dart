@@ -111,6 +111,23 @@ class GroupPage extends StatelessWidget {
               },
             ),
             ListTile(
+              leading: const Icon(Icons.history),
+              title: const Text('Gesamte Kaufhistorie löschen'),
+              subtitle: Text('${group.purchases.length} Käufe'),
+              onTap: () async {
+                if (await confirm(
+                  context,
+                  title: 'Gesamte Kaufhistorie löschen?',
+                  message:
+                      'Alle Käufe der Gruppe werden für alle Mitglieder '
+                      'gelöscht. Vorschläge und wiederkehrende Artikel '
+                      'fangen dann von vorn an.',
+                )) {
+                  session.apply(group.deletePurchases());
+                }
+              },
+            ),
+            ListTile(
               leading: const Icon(Icons.logout),
               title: const Text('Gruppe von diesem Gerät entfernen'),
               onTap: () async {
