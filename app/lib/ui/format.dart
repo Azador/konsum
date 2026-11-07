@@ -11,12 +11,14 @@ const unitLabels = {
   Units.can: 'Dose',
   Units.bottle: 'Flasche',
   Units.bunch: 'Bund',
+  Units.crate: 'Kiste',
 };
 
 const _pluralLabels = {
   Units.pack: 'Packungen',
   Units.can: 'Dosen',
   Units.bottle: 'Flaschen',
+  Units.crate: 'Kisten',
 };
 
 String unitLabel(String? unit) => unit == null ? '' : unitLabels[unit] ?? unit;
@@ -124,6 +126,8 @@ const _unitAliases = {
   'flasche': Units.bottle,
   'flaschen': Units.bottle,
   'bund': Units.bunch,
+  'kiste': Units.crate,
+  'kisten': Units.crate,
 };
 
 /// Schnelleingabe wie „2 kg Mehl“, „3x Joghurt“ oder „Milch“.

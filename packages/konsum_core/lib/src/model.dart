@@ -26,6 +26,7 @@ abstract final class Units {
   static const can = 'can';
   static const bottle = 'bottle';
   static const bunch = 'bunch';
+  static const crate = 'crate';
 
   static const all = [
     piece,
@@ -37,6 +38,7 @@ abstract final class Units {
     can,
     bottle,
     bunch,
+    crate,
   ];
 
   /// Gewicht und Volumen; alles andere sind Zähleinheiten.
@@ -44,15 +46,21 @@ abstract final class Units {
 
   static bool isMeasure(String? unit) => measures.contains(unit);
 
-  /// Möglicher Inhalt einer Packung: Gewicht, Volumen oder Stück (z. B. eine
-  /// Packung mit 6 Eiern).
-  static const packUnits = [...measures, piece];
+  /// Zähleinheiten, die als Inhalt einer Packung taugen (z. B. eine Packung
+  /// mit 6 Eiern, eine Kiste mit 20 Flaschen).
+  static const countPackUnits = [piece, bottle];
 
-  /// Ob [packUnit] als Inhalt je [unit] zählt. Stück je Stück ergibt keinen
-  /// Sinn und wird ignoriert.
+  /// Möglicher Inhalt einer Packung: Gewicht, Volumen oder eine der
+  /// [countPackUnits].
+  static const packUnits = [...measures, ...countPackUnits];
+
+  /// Ob [packUnit] als Inhalt je [unit] zählt. Stück je Stück (Flasche je
+  /// Flasche) ergibt keinen Sinn und wird ignoriert.
   static bool isPackUnitFor(String? packUnit, String? unit) =>
       isCount(unit) &&
-      (isMeasure(packUnit) || (packUnit == piece && unit != piece));
+      (isMeasure(packUnit) ||
+          (countPackUnits.contains(packUnit) &&
+              packUnit != (unit ?? pack)));
 
   /// Zähleinheit (Stück, Packung, …), für die eine Packungsgröße passt.
   /// Ohne Einheit gilt Packung.

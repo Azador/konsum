@@ -65,6 +65,15 @@ void main() {
       formatAmount(quantity: 2, packSize: 6, packUnit: Units.piece),
       '2 Packungen à 6 Stück',
     );
+    expect(
+      formatAmount(
+        quantity: 1,
+        unit: Units.crate,
+        packSize: 20,
+        packUnit: Units.bottle,
+      ),
+      '1 Kiste à 20 Flaschen',
+    );
     // Packungsgröße nur bei Zähleinheiten.
     expect(
       formatAmount(
