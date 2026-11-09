@@ -255,7 +255,7 @@ class _ListPageState extends State<ListPage> {
     List<ListEntry> all,
     List<ListEntry> open,
     List<ListEntry> checked,
-    ({int cents, int unknown}) total,
+    ({int cents, int open, int unknown}) total,
     String? shopId,
   ) {
     final app = AppScope.of(context);
@@ -296,6 +296,9 @@ class _ListPageState extends State<ListPage> {
                   'Summe ca. ${formatCents(total.cents)}',
                   style: Theme.of(context).textTheme.titleSmall,
                 ),
+                // Während des Einkaufs: wie viel noch in den Wagen kommt.
+                if (checked.isNotEmpty && open.isNotEmpty)
+                  Text('  · offen ${formatCents(total.open)}'),
                 if (total.unknown > 0) Text('  (${total.unknown} ohne Preis)'),
               ],
             ),
