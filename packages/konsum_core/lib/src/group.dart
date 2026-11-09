@@ -404,19 +404,27 @@ class Group {
     return (lastBase * base.amount).round();
   }
 
-  /// Summe der (geschätzten) Preise der offenen Einträge einer Liste.
-  ({int cents, int unknown}) listTotal(String listId, {String? shopId}) {
+  /// Summe der (geschätzten) Preise aller Einträge einer Liste, abgehakte
+  /// eingeschlossen: beim Einkaufen zählt der ganze Einkauf. [open] ist der
+  /// Teil davon, der auf noch nicht abgehakte Einträge entfällt; [unknown]
+  /// zählt die Einträge ohne Preis.
+  ({int cents, int open, int unknown}) listTotal(
+    String listId, {
+    String? shopId,
+  }) {
     var cents = 0;
+    var open = 0;
     var unknown = 0;
-    for (final e in entries(listId).where((e) => !e.checked)) {
+    for (final e in entries(listId)) {
       final p = estimatedPrice(e, shopId: shopId);
       if (p == null) {
         unknown++;
       } else {
         cents += p;
+        if (!e.checked) open += p;
       }
     }
-    return (cents: cents, unknown: unknown);
+    return (cents: cents, open: open, unknown: unknown);
   }
 
   /// Vorschläge zum Hinzufügen: Artikel, die zu [query] passen und noch nicht

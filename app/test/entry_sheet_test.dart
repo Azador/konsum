@@ -243,4 +243,70 @@ void main() {
     );
     await finish(tester);
   });
+
+  testWidgets('Zurück von der Artikelseite landet wieder im Eintrag', (
+    tester,
+  ) async {
+    final (state, listId, hack) = await setUp(tester);
+    final session = state.currentGroup!;
+    session.apply(session.group.addToList(listId, hack, quantity: 2));
+    await tester.pump();
+    await openSheet(tester);
+    await tester.enterText(field('Notiz für alle'), 'vom Metzger');
+
+    await tester.tap(find.text('Artikel'));
+    await tester.pumpAndSettle();
+    expect(find.byTooltip('Endgültig löschen'), findsOne);
+
+    await tester.tap(find.byType(BackButton));
+    await tester.pumpAndSettle();
+    // Das Blatt ist wieder da, samt ungespeicherter Eingabe.
+    expect(text(tester, 'Notiz für alle'), 'vom Metzger');
+    await finish(tester);
+  });
+
+  testWidgets('Inhalt an der Artikelseite geändert: Speichern überschreibt '
+      'ihn nicht', (tester) async {
+    final (state, listId, hack) = await setUp(tester);
+    final session = state.currentGroup!;
+    session.apply(
+      session.group.updateArticle(hack, {'packSize': 500, 'packUnit': 'g'}),
+    );
+    session.apply(session.group.addToList(listId, hack, quantity: 2));
+    await tester.pump();
+    await openSheet(tester);
+
+    await tester.tap(find.text('Artikel'));
+    await tester.pumpAndSettle();
+    session.apply(
+      session.group.updateArticle(hack, {'packSize': 400, 'packUnit': 'g'}),
+    );
+    await tester.tap(find.byType(BackButton));
+    await tester.pumpAndSettle();
+    // Der Eintrag behält seinen Inhalt, der Artikel den neuen.
+    expect(text(tester, 'Inhalt je Packung'), '500');
+
+    await tester.tap(find.text('Speichern'));
+    await tester.pumpAndSettle();
+    expect(session.group.article(hack)!.packSize, 400);
+    await finish(tester);
+  });
+
+  testWidgets('Artikel auf der Artikelseite gelöscht: Blatt schließt sich', (
+    tester,
+  ) async {
+    final (state, listId, hack) = await setUp(tester);
+    final session = state.currentGroup!;
+    session.apply(session.group.addToList(listId, hack, quantity: 2));
+    await tester.pump();
+    await openSheet(tester);
+
+    await tester.tap(find.text('Artikel'));
+    await tester.pumpAndSettle();
+    session.apply(session.group.deleteArticle(hack));
+    await tester.tap(find.byType(BackButton));
+    await tester.pumpAndSettle();
+    expect(find.text('Speichern'), findsNothing);
+    await finish(tester);
+  });
 }

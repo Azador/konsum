@@ -187,6 +187,31 @@ class _EntrySheetState extends State<_EntrySheet> {
     _basePriceText.text = cents == null ? '' : formatCentsInput(cents);
   }
 
+  /// Öffnet die Artikelseite über dem Blatt; zurück geht es wieder hierher,
+  /// mit den noch nicht gespeicherten Eingaben.
+  Future<void> _openArticle() async {
+    final group = widget.session.group;
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => ArticlePage(
+          session: widget.session,
+          articleId: widget.entry.articleId,
+        ),
+      ),
+    );
+    if (!mounted) return;
+    final fresh = group
+        .entries(widget.entry.listId)
+        .where((e) => e.articleId == widget.entry.articleId)
+        .firstOrNull;
+    if (fresh == null) {
+      // Artikel gelöscht: der Eintrag ist mit ihm verschwunden.
+      Navigator.pop(context);
+      return;
+    }
+    setState(() {});
+  }
+
   void _save() {
     final e = widget.entry;
     final group = widget.session.group;
@@ -215,9 +240,12 @@ class _EntrySheetState extends State<_EntrySheet> {
     if (fields.isNotEmpty) {
       widget.session.apply(group.updateEntry(e.listId, e.articleId, fields));
     }
-    // Packungsgröße am Artikel merken, fürs nächste Mal.
+    // Packungsgröße am Artikel merken, fürs nächste Mal – nur wenn sie hier
+    // geändert wurde. Sonst schriebe Speichern einen auf der Artikelseite
+    // inzwischen geänderten Inhalt mit dem alten Wert des Eintrags zurück.
     final article = group.article(e.articleId);
     if (packSize != null &&
+        (packSize != e.packSize || _packUnit != e.packUnit) &&
         article != null &&
         (article.packSize != packSize || article.packUnit != _packUnit)) {
       widget.session.apply(
@@ -239,7 +267,10 @@ class _EntrySheetState extends State<_EntrySheet> {
   @override
   Widget build(BuildContext context) {
     final group = widget.session.group;
-    final article = group.article(widget.entry.articleId)!;
+    // Kann fehlen, wenn der Artikel auf der Artikelseite gelöscht wurde und
+    // das Blatt darunter noch einmal gebaut wird, bevor es sich schließt.
+    final article = group.article(widget.entry.articleId);
+    if (article == null) return const SizedBox.shrink();
     final last = group.lastPrice(article.id);
     // Unten frei halten: Tastatur, sonst die Navigationsleiste, unter die
     // Android 15 (edge-to-edge) die App zeichnet.
@@ -268,18 +299,7 @@ class _EntrySheetState extends State<_EntrySheet> {
                 TextButton.icon(
                   icon: const Icon(Icons.inventory_2_outlined),
                   label: const Text('Artikel'),
-                  onPressed: () {
-                    Navigator.of(context)
-                      ..pop()
-                      ..push(
-                        MaterialPageRoute<void>(
-                          builder: (_) => ArticlePage(
-                            session: widget.session,
-                            articleId: article.id,
-                          ),
-                        ),
-                      );
-                  },
+                  onPressed: _openArticle,
                 ),
               ],
             ),
@@ -376,21 +396,6 @@ class _EntrySheetState extends State<_EntrySheet> {
               children: [
                 Expanded(
                   child: TextField(
-                    controller: _price,
-                    keyboardType: const TextInputType.numberWithOptions(
-                      decimal: true,
-                    ),
-                    decoration: InputDecoration(
-                      labelText: 'Preis (€)',
-                      helperText: 'für diese Menge',
-                      border: const OutlineInputBorder(),
-                    ),
-                    onChanged: _priceChanged,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: TextField(
                     controller: _basePriceText,
                     keyboardType: const TextInputType.numberWithOptions(
                       decimal: true,
@@ -401,6 +406,21 @@ class _EntrySheetState extends State<_EntrySheet> {
                       border: const OutlineInputBorder(),
                     ),
                     onChanged: _basePriceChanged,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: TextField(
+                    controller: _price,
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
+                    decoration: const InputDecoration(
+                      labelText: 'Preis (€)',
+                      helperText: 'für diese Menge',
+                      border: OutlineInputBorder(),
+                    ),
+                    onChanged: _priceChanged,
                   ),
                 ),
               ],
