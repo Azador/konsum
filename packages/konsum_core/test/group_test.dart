@@ -218,8 +218,19 @@ void main() {
       expect(s.alice.estimatedPrice(e, shopId: famila), 387);
       expect(s.alice.listTotal(listId, shopId: famila), (
         cents: 387,
+        open: 387,
         unknown: 0,
       ));
+    });
+
+    test('Summe schließt abgehakte Einträge ein', () {
+      final milch = s.alice.createArticle('Milch').id;
+      s.alice.addToList(listId, spaghetti, quantity: 1);
+      s.alice.addToList(listId, milch, quantity: 1);
+      s.alice.updateEntry(listId, spaghetti, {'price': 129});
+      s.alice.updateEntry(listId, milch, {'price': 99});
+      s.alice.setChecked(listId, spaghetti, true);
+      expect(s.alice.listTotal(listId), (cents: 228, open: 99, unknown: 0));
     });
 
     test('Keine Schätzung bei anderer Einheit', () {
@@ -227,7 +238,7 @@ void main() {
       s.alice.addToList(listId, spaghetti, quantity: 2, unit: Units.pack);
       final e = s.alice.entries(listId).single;
       expect(s.alice.estimatedPrice(e), isNull);
-      expect(s.alice.listTotal(listId), (cents: 0, unknown: 1));
+      expect(s.alice.listTotal(listId), (cents: 0, open: 0, unknown: 1));
     });
 
     test('Grundpreis: Preis folgt der Menge', () {
