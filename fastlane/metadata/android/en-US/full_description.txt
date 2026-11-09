@@ -10,6 +10,7 @@ Features
 • Product data and nutrition facts from Open Food Facts on request
 • Shared and private notes per entry
 • Prices with history and an estimated total for the list
+• Recurring items can be added automatically, with a quantity based on past consumption
 • Works completely offline
 
 Sharing via Matrix
