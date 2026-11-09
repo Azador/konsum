@@ -10,6 +10,7 @@ class UnitField extends StatelessWidget {
     required this.value,
     required this.onChanged,
     this.label = 'Einheit',
+    this.helperText,
     this.units = Units.all,
     this.allowNone = true,
   });
@@ -17,6 +18,7 @@ class UnitField extends StatelessWidget {
   final String? value;
   final ValueChanged<String?> onChanged;
   final String label;
+  final String? helperText;
   final List<String> units;
   final bool allowNone;
 
@@ -25,6 +27,8 @@ class UnitField extends StatelessWidget {
     initialValue: value,
     decoration: InputDecoration(
       labelText: label,
+      helperText: helperText,
+      helperMaxLines: 3,
       border: const OutlineInputBorder(),
     ),
     items: [
