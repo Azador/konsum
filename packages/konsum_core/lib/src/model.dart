@@ -59,8 +59,7 @@ abstract final class Units {
   static bool isPackUnitFor(String? packUnit, String? unit) =>
       isCount(unit) &&
       (isMeasure(packUnit) ||
-          (countPackUnits.contains(packUnit) &&
-              packUnit != (unit ?? pack)));
+          (countPackUnits.contains(packUnit) && packUnit != (unit ?? pack)));
 
   /// Zähleinheit (Stück, Packung, …), für die eine Packungsgröße passt.
   /// Ohne Einheit gilt Packung.
@@ -75,6 +74,7 @@ class Article {
     this.defaultUnit,
     this.packSize,
     this.packUnit,
+    this.autoExcluded = false,
   });
 
   final String id;
@@ -85,6 +85,29 @@ class Article {
   /// Übliche Packungsgröße, z. B. 500 g; wird beim Hinzufügen übernommen.
   final num? packSize;
   final String? packUnit;
+
+  /// Von der Automatik für wiederkehrende Artikel ausgenommen.
+  final bool autoExcluded;
+}
+
+/// Eine Menge mit Einheit und Packungsgröße, wie bei [ListEntry].
+class Amount {
+  const Amount({this.quantity, this.unit, this.packSize, this.packUnit});
+
+  final num? quantity;
+
+  /// Ohne Einheit gilt Packung.
+  final String? unit;
+  final num? packSize;
+  final String? packUnit;
+
+  /// Menge in der Grundeinheit, siehe [baseAmount].
+  BaseAmount? get base => baseAmount(
+    quantity: quantity,
+    unit: unit,
+    packSize: Units.isCount(unit) ? packSize : null,
+    packUnit: packUnit,
+  );
 }
 
 class Category {
@@ -129,6 +152,8 @@ class ListEntry {
     this.price,
     this.basePrice,
     this.checked = false,
+    this.autoAdded = false,
+    this.autoAmount,
   });
 
   final String listId;
@@ -155,20 +180,39 @@ class ListEntry {
   final num? basePrice;
   final bool checked;
 
+  /// Von der Automatik für wiederkehrende Artikel auf die Liste gesetzt.
+  final bool autoAdded;
+
+  /// Was die Automatik vorschlägt (Verbrauch seit dem letzten Kauf); null,
+  /// wenn sie aus ist oder nichts weiß. Wird nicht gespeichert, sondern bei
+  /// jeder Abfrage neu berechnet.
+  final Amount? autoAmount;
+
   String get id => entryId(listId, articleId);
 
-  /// Menge in der Grundeinheit, siehe [baseAmount].
-  BaseAmount? get base => baseAmount(
+  /// Von Hand eingetragene Menge.
+  Amount get amount => Amount(
     quantity: quantity,
     unit: unit,
-    packSize: Units.isCount(unit) ? packSize : null,
+    packSize: packSize,
     packUnit: packUnit,
   );
+
+  /// Von Hand eingetragene Menge in der Grundeinheit, siehe [baseAmount].
+  BaseAmount? get base => amount.base;
+
+  /// Menge, die gilt (für Preis und Kauf): die von Hand eingetragene, ohne
+  /// sie die der Automatik.
+  Amount get effectiveAmount =>
+      quantity == null ? autoAmount ?? amount : amount;
+
+  /// [effectiveAmount] in der Grundeinheit.
+  BaseAmount? get effectiveBase => effectiveAmount.base;
 
   /// Preis für die Menge: aus dem Grundpreis berechnet, wenn möglich, sonst
   /// der eingetragene Preis.
   int? get totalCents {
-    final b = base;
+    final b = effectiveBase;
     if (basePrice != null && b != null) return (basePrice! * b.amount).round();
     return price;
   }
@@ -177,15 +221,16 @@ class ListEntry {
   num? get basePriceCents {
     if (basePrice != null) return basePrice;
     final p = price;
-    return p == null ? null : pricePerBase(p, base);
+    return p == null ? null : pricePerBase(p, effectiveBase);
   }
 
   static String entryId(String listId, String articleId) =>
       '$listId/$articleId';
 }
 
-/// Ein abgeschlossener Kauf; Grundlage für Vorschläge und spätere Statistik.
-/// Käufe werden nur angelegt, nie geändert.
+/// Ein abgeschlossener Kauf; Grundlage für Vorschläge und wiederkehrende
+/// Artikel. Käufe werden angelegt und gelöscht; ändern lässt sich nur die
+/// Menge.
 class Purchase {
   const Purchase({
     required this.id,
@@ -193,6 +238,7 @@ class Purchase {
     required this.listId,
     required this.millis,
     this.shopId,
+    this.amount,
   });
 
   final String id;
@@ -200,6 +246,10 @@ class Purchase {
   final String listId;
   final int millis;
   final String? shopId;
+
+  /// Gekaufte Menge; null bei Käufen älterer Versionen, die sie nicht
+  /// gespeichert haben.
+  final Amount? amount;
 }
 
 /// Ein beobachteter Preis eines Artikels, optional mit Menge und Laden.

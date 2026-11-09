@@ -48,8 +48,21 @@ Server.
   (Name, Marke, Bild, Nährwerte); Abfrage nur bei Bedarf, Ergebnis lokal gespeichert
 - Unter Linux: USB-Handscanner (verhält sich wie eine Tastatur) bzw. manuelle Eingabe
 
+### Wiederkehrende Artikel
+- Schalter je Gerät (Vorgabe aus, nicht geteilt); einzelne Artikel lassen
+  sich für die ganze Gruppe ausnehmen (Vorgabe: dabei)
+- Menge nach Verbrauch seit dem letzten Kauf (Vorrat): wer 4 l Milch je
+  Woche kauft und nach einer halben Woche einkauft, braucht 2 l. Der
+  Verbrauch ist der Median über die Abstände der Käufe, damit Ausreißer
+  (Reise, Einkauf für ein Fest) kaum zählen
+- Fällige Artikel kommen von selbst auf die Liste; die Menge der Automatik
+  steht getrennt von der Menge von Hand („3 l · automatisch 2 l“). Preis und
+  Kauf rechnen mit der Menge von Hand, ohne sie mit der der Automatik
+- Gekaufte Mengen lassen sich unter „Käufe“ nachträglich korrigieren
+- Regeln im Detail: PROTOKOLL.md, „Wiederkehrende Artikel“
+
 ### Später / Ideen
-- Kaufhistorie, Statistik, wiederkehrende Artikel
+- Statistik
 - Weitere Sync-Backends (siehe unten)
 
 ## Plattformen und Technik
@@ -165,7 +178,7 @@ in der Software, werden aber durch definierte Löschaktionen bereinigt.
 |---|---|---|
 | **A – aktueller Stand** | Gruppen, Einkaufslisten, Artikel (mit Barcodes, Packungsgröße), Kategorien, Läden (mit Reihenfolge), Einträge, die gerade auf einer Liste stehen (auch abgehakte), private Notizen dazu | unbegrenzt, aber nur der **aktuelle** Wert; frühere Werte werden nicht gebraucht |
 | **B – sichtbar, vom Benutzer verwaltet** | Preishistorie | bis der Benutzer löscht; dann wirklich weg (siehe D) |
-| **C – unsichtbar, für Funktionen** | Käufe (entstehen beim Aufräumen; sortieren die Vorschläge, später Basis für wiederkehrende Artikel) | Verfall nach der Frist der Gruppe (siehe unten); möglichst knapp (Datum statt Millisekunde); sollen künftig sichtbar und löschbar werden („zuletzt gekauft“, „Kaufhistorie löschen“) |
+| **C – für Funktionen** | Käufe mit Menge (entstehen beim Aufräumen; sortieren die Vorschläge, Basis für wiederkehrende Artikel) | Verfall nach der Frist der Gruppe (siehe unten); möglichst knapp (Datum statt Millisekunde, noch offen); sichtbar und löschbar unter „Käufe“ und am Artikel (einzeln, je Artikel, komplett) |
 | **D – gelöscht / erledigt** | gelöschte Preise, aufgeräumte oder weggewischte Einträge, gelöschte Artikel, Listen, Läden, Kategorien, Barcodes | Inhalt **sofort** weg; übrig bleibt höchstens ein leerer Grabstein, der seinerseits verfällt |
 
 ### Wo Daten liegen

@@ -7,6 +7,7 @@ import 'articles_page.dart';
 import 'categories_page.dart';
 import 'dialogs.dart';
 import 'group_page.dart';
+import 'purchases_page.dart';
 import 'scope.dart';
 import 'shops_page.dart';
 import 'theme.dart';
@@ -123,6 +124,12 @@ class GroupDrawer extends StatelessWidget {
             title: const Text('Läden'),
             onTap: () => _push(context, ShopsPage(session: current)),
           ),
+          ListTile(
+            contentPadding: const EdgeInsets.only(left: 28, right: 16),
+            leading: const Icon(Icons.history),
+            title: const Text('Käufe'),
+            onTap: () => _push(context, PurchasesPage(session: current)),
+          ),
         ],
         if (matrix != null) ...[
           const Divider(indent: 28, endIndent: 28),
@@ -135,6 +142,17 @@ class GroupDrawer extends StatelessWidget {
           ),
         ],
         const Divider(indent: 28, endIndent: 28),
+        SwitchListTile(
+          contentPadding: const EdgeInsets.only(left: 28, right: 16),
+          secondary: const Icon(Icons.autorenew),
+          title: const Text('Wiederkehrende Artikel'),
+          subtitle: const Text(
+            'Menge nach Verbrauch, fällige Artikel auf die Liste · '
+            'nur auf diesem Gerät',
+          ),
+          value: app.automatic,
+          onChanged: (on) => app.automatic = on,
+        ),
         ListTile(
           contentPadding: const EdgeInsets.only(left: 28, right: 16),
           leading: const Icon(Icons.privacy_tip_outlined),
