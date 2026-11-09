@@ -318,21 +318,6 @@ class _EntrySheetState extends State<_EntrySheet> {
               children: [
                 Expanded(
                   child: TextField(
-                    controller: _price,
-                    keyboardType: const TextInputType.numberWithOptions(
-                      decimal: true,
-                    ),
-                    decoration: const InputDecoration(
-                      labelText: 'Preis (€)',
-                      helperText: 'für diese Menge',
-                      border: OutlineInputBorder(),
-                    ),
-                    onChanged: _priceChanged,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: TextField(
                     controller: _basePriceText,
                     keyboardType: const TextInputType.numberWithOptions(
                       decimal: true,
@@ -343,6 +328,21 @@ class _EntrySheetState extends State<_EntrySheet> {
                       border: const OutlineInputBorder(),
                     ),
                     onChanged: _basePriceChanged,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: TextField(
+                    controller: _price,
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
+                    decoration: const InputDecoration(
+                      labelText: 'Preis (€)',
+                      helperText: 'für diese Menge',
+                      border: OutlineInputBorder(),
+                    ),
+                    onChanged: _priceChanged,
                   ),
                 ),
               ],
