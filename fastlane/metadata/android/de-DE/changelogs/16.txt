@@ -1,0 +1,8 @@
+• Wiederkehrende Artikel kommen auf Wunsch von selbst auf die Liste, Menge nach Verbrauch.
+• Kaufhistorie „Käufe“, Mengen korrigierbar.
+• Plus/Minus bei der Menge.
+• Einheit Kiste, z. B. 1 Kiste à 20 Flaschen.
+• Summe zählt auch Abgehaktes, dazu der offene Betrag.
+• Grundpreis links, Gesamtpreis rechts.
+• Von der Artikelseite zurück in den Eintrag.
+• Kategorien eines Ladens nicht mehr unter der Android-Leiste.
