@@ -149,6 +149,12 @@ class ShopPage extends StatelessWidget {
               // Ganze Zeile: nach kurzem Halten ziehen (sonst wird gescrollt).
               // Griff am Zeilenanfang: sofort ziehen.
               buildDefaultDragHandles: false,
+              // Anders als ListView rückt ReorderableListView nicht von
+              // selbst um die Systemleiste ein; ohne das verdeckt die
+              // Android-Navigationsleiste die letzten Kategorien.
+              padding: EdgeInsets.only(
+                bottom: MediaQuery.paddingOf(context).bottom,
+              ),
               onReorderItem: (from, to) {
                 final next = [...order];
                 next.insert(to, next.removeAt(from));

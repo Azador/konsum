@@ -8,6 +8,7 @@ Funktionen
 • Produktdaten und Nährwerte auf Wunsch von Open Food Facts
 • Gemeinsame und private Notizen je Eintrag
 • Preise mit Historie und geschätzter Summe der Liste
+• Wiederkehrende Artikel auf Wunsch automatisch auf die Liste, mit Menge nach bisherigem Verbrauch
 • Funktioniert vollständig offline
 
 Teilen über Matrix

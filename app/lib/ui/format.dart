@@ -57,6 +57,14 @@ String? formatAmount({
   return text;
 }
 
+/// [formatAmount] für eine [Amount].
+String? formatAmountOf(Amount a) => formatAmount(
+  quantity: a.quantity,
+  unit: a.unit,
+  packSize: a.packSize,
+  packUnit: a.packUnit,
+);
+
 String formatCents(int cents) => _money.format(cents / 100);
 
 /// Preis je Grundeinheit, z. B. „2,58 €/kg“ oder „0,99 €/Packung“.

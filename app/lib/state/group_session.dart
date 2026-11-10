@@ -111,6 +111,9 @@ class GroupSession extends ChangeNotifier {
   /// Wartet auf einen vollständigen Schnappschuss, siehe [_startResync].
   bool _resyncing = false;
 
+  /// Seit dem Verbinden einmal lückenlos synchronisiert.
+  bool _syncedSinceAttach = false;
+
   /// Objekte, die während des Wartens geändert wurden.
   final _touched = <(String, String)>{};
   Timer? _saveTimer;
@@ -169,6 +172,7 @@ class GroupSession extends ChangeNotifier {
   Future<void> attach(GroupSync sync) async {
     await detach();
     _sync = sync;
+    _syncedSinceAttach = false;
     sync.snapshotProvider = group.replica.snapshot;
     _subscriptions
       ..add(
@@ -237,6 +241,22 @@ class GroupSession extends ChangeNotifier {
     group.expire(DateTime.now());
   }
 
+  /// Setzt fällige wiederkehrende Artikel auf die Liste (siehe
+  /// [Group.autoAdd]), falls die Automatik an ist. Geteilte Gruppen erst,
+  /// wenn der aktuelle Stand da ist: Ein Gerät mit veraltetem Stand würde
+  /// sonst Artikel wieder auf die Liste setzen, die anderswo schon gekauft
+  /// wurden.
+  void autoAdd() {
+    if (!group.automatic) return;
+    final current =
+        info.backend == null ||
+        (_sync != null &&
+            _syncedSinceAttach &&
+            !_resyncing &&
+            !_lastFlushFailed);
+    if (current) apply(group.autoAdd());
+  }
+
   /// Lässt Abgelaufenes verfallen (siehe [Group.expire]), z. B. wenn die App
   /// lange offen bleibt.
   void expire() {
@@ -268,6 +288,7 @@ class GroupSession extends ChangeNotifier {
       return;
     }
     _lastSync = DateTime.now().millisecondsSinceEpoch;
+    _syncedSinceAttach = true;
     _saveTimer?.cancel();
     _saveTimer = Timer(const Duration(milliseconds: 300), save);
   }

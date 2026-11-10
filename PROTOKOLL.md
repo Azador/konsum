@@ -318,6 +318,8 @@ Beim Löschen einer Liste werden auch ihre Einträge gelöscht.
 | `defaultUnit` | Einheit \| null | Vorgabe beim Hinzufügen |
 | `packSize` | Zahl \| null | übliche Packungsgröße, z. B. `500` … |
 | `packUnit` | Einheit \| null | … `g`; nur `g`, `kg`, `ml`, `l`, `pcs` |
+| `autoExcluded` | bool \| null | `true`: von der Automatik für wiederkehrende Artikel ausgenommen |
+| `autoDismissed` | Ganzzahl \| null | Zeitpunkt (Unix-Millisekunden), zu dem jemand einen automatisch gesetzten Eintrag von der Liste genommen hat |
 | `_deleted` | bool | |
 
 Ein Artikel bleibt bestehen, wenn er von einer Liste genommen wird. Beim
@@ -342,6 +344,7 @@ Liste, entsteht kein Duplikat.
 | `checked` | bool | abgehakt |
 | `price` | Ganzzahl \| null | Preis in Cent für die Menge |
 | `basePrice` | Zahl \| null | Preis in Cent je Grundeinheit (kg, l, Stück, …); hat Vorrang vor `price` |
+| `autoAdded` | bool \| null | `true`: von der Automatik für wiederkehrende Artikel gesetzt |
 | `_deleted` | bool | |
 
 Einträge, deren Artikel nicht existiert, werden nicht angezeigt. Wer einen
@@ -385,7 +388,7 @@ einem Artikel.
 | `product` | Objekt \| null | Produktdaten, z. B. von Open Food Facts: `name`, `brand`, `quantity` (Text, „500 g“), `imageUrl`, `nutriments` (je 100 g/ml, Schlüssel wie bei Open Food Facts), `nutriScore`, `productType` |
 | `_deleted` | bool | |
 
-### `purchase` – abgeschlossener Kauf (nur anlegen, nie ändern)
+### `purchase` – abgeschlossener Kauf (anlegen, löschen, Menge korrigieren)
 
 | Feld | Typ | |
 |---|---|---|
@@ -393,9 +396,45 @@ einem Artikel.
 | `listId` | ID | |
 | `millis` | Ganzzahl | Zeitpunkt (Unix-Millisekunden) |
 | `shopId` | ID \| null | |
+| `quantity`, `unit`, `packSize`, `packUnit` | wie bei `entry` | gekaufte Menge; `unit` steht immer da (auch `pack`) |
 
-Grundlage für Vorschläge (häufig gekaufte Artikel zuerst).
-Käufe verfallen nach der Aufbewahrungsfrist (siehe `settings`).
+Grundlage für Vorschläge (häufig gekaufte Artikel zuerst) und wiederkehrende
+Artikel. Käufe verfallen nach der Aufbewahrungsfrist (siehe `settings`) und
+lassen sich löschen (`_deleted`). Käufe älterer Versionen haben keine Menge
+und kein `unit`; sie zählen für Vorschläge, nicht für den Verbrauch.
+
+### Wiederkehrende Artikel (Automatik)
+
+Ob die Automatik läuft, stellt jeder Benutzer auf seinem Gerät ein; das
+wird nicht übertragen. Was sie vorschlägt, wird nicht gespeichert, sondern
+aus den Käufen neu berechnet – andere Clients dürfen das anders oder gar
+nicht tun. Übertragen werden nur `autoAdded`, `autoExcluded` und
+`autoDismissed`. Konsum rechnet so:
+
+- **Verbrauch:** Käufe des Artikels mit Menge in der Grundeinheit des
+  letzten Kaufs; Käufe weniger als einen Tag nach dem vorigen zählen mit
+  diesem zusammen. Es braucht mindestens zwei. Was gekauft wurde, gilt bis
+  zum nächsten Kauf als verbraucht; je Abstand ergibt das einen Verbrauch
+  je Tag (Menge ÷ Tage bis zum nächsten Kauf). Es gilt der **Median**
+  dieser Werte, damit einzelne Ausreißer (Reise, Einkauf für ein Fest) kaum
+  zählen. Beispiel: montags 3, 3, 1, 4, 3, 3, 6 l → Wochenwerte 3, 3, 1,
+  4, 3, 3 → 3 l pro Woche.
+- **Menge:** Verbrauch je Tag × Tage seit dem letzten Kauf, höchstens die
+  größte Menge eines Kaufs; in der Einheit des letzten Kaufs, Zähleinheiten
+  auf ganze, `kg`/`l` auf Zehntel, `g`/`ml` auf zehn gerundet. Beispiel:
+  4 l Milch je Woche, letzter Kauf vor 3½ Tagen → 2 l.
+- **Auf die Liste:** Ist ein Artikel auf keiner Liste und seit dem letzten
+  Kauf mindestens die Hälfte eines üblichen Kaufs (Median) verbraucht,
+  kommt er mit `autoAdded: true` und leerer `quantity` auf die Liste seines
+  letzten Kaufs (gibt es sie nicht mehr: die erste). Nimmt jemand einen
+  solchen Eintrag weg, wird `autoDismissed` gesetzt; der Artikel kommt erst
+  nach dem nächsten Kauf oder einem üblichen Abstand (Median) zwischen zwei
+  Käufen wieder. Nur Geräte, die aktuell synchronisiert sind, setzen Artikel.
+- **Menge von Hand:** `quantity` bleibt die Menge von Hand und wird getrennt
+  von der Automatik angezeigt. Für Preis und Kauf gilt sie, auch wenn sie
+  kleiner ist; nur ohne `quantity` gilt die Menge der Automatik. Gekaufte
+  Mengen lassen sich nachträglich korrigieren (`quantity`, `unit`,
+  `packSize`, `packUnit` des `purchase` neu schreiben).
 
 ### `price` – Preishistorie (nur anlegen oder löschen)
 

@@ -1,0 +1,8 @@
+• Recurring items can be added to the list automatically, quantity by consumption.
+• Purchase history ("Käufe"), quantities correctable.
+• Plus/minus for the quantity.
+• Crate unit, e.g. 1 crate of 20 bottles.
+• Total includes checked-off items, plus the amount still open.
+• Base price left, total price right.
+• Back from the item page returns to the entry.
+• Store categories no longer hidden behind the Android bar.

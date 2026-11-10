@@ -161,4 +161,152 @@ void main() {
     expect(find.text('3,98 €/kg'), findsOneWidget);
     await finish(tester);
   });
+
+  testWidgets('Plus und Minus im Mengenfeld', (tester) async {
+    final (state, listId, hack) = await setUp(tester);
+    final session = state.currentGroup!;
+    session.apply(
+      session.group.addToList(listId, hack, quantity: 2, unit: Units.pack),
+    );
+    await tester.pump();
+    await openSheet(tester);
+    await tester.tap(find.byTooltip('Mehr'));
+    await tester.pump();
+    expect(text(tester, 'Menge'), '3');
+    await tester.tap(find.byTooltip('Weniger'));
+    await tester.tap(find.byTooltip('Weniger'));
+    await tester.pump();
+    expect(text(tester, 'Menge'), '1');
+    // Unter eine Packung geht es nicht.
+    await tester.tap(find.byTooltip('Weniger'));
+    await tester.pump();
+    expect(text(tester, 'Menge'), '1');
+    await finish(tester);
+  });
+
+  testWidgets('Automatische Menge getrennt von der eigenen', (tester) async {
+    final (state, listId, hack) = await setUp(tester);
+    final session = state.currentGroup!;
+    final now = DateTime.now().millisecondsSinceEpoch;
+    const day = Duration.millisecondsPerDay;
+    // Zwei Käufe à 4 kg im Abstand einer Woche, der letzte vor einer Woche.
+    session.group.receive([
+      for (final (i, ago) in [14, 7].indexed)
+        for (final f in {
+          'articleId': hack,
+          'listId': listId,
+          'millis': now - ago * day,
+          'quantity': 4,
+          'unit': Units.kilogram,
+        }.entries)
+          Change(
+            type: Types.purchase,
+            id: 'p$i',
+            field: f.key,
+            value: f.value,
+            hlc: Hlc(now - ago * day, 0, 'bob'),
+          ),
+    ]);
+    state.automatic = true;
+    await tester.pump();
+    expect(
+      find.textContaining('automatisch 4 kg', findRichText: true),
+      findsOneWidget,
+    );
+
+    await openSheet(tester);
+    await tester.tap(find.byTooltip('Mehr'));
+    await tester.pump();
+    expect(text(tester, 'Menge'), '5');
+    await tester.tap(find.text('Speichern'));
+    await tester.pumpAndSettle();
+    // Zwischen beiden steht das Symbol der Automatik.
+    expect(
+      find.textContaining(
+        RegExp('^5 kg · .*automatisch 4 kg'),
+        findRichText: true,
+      ),
+      findsOneWidget,
+    );
+
+    state.automatic = false;
+    await tester.pump();
+    // Keine Menge der Automatik mehr, aber erkennbar, wer den Eintrag
+    // gesetzt hat.
+    expect(
+      find.textContaining('automatisch 4 kg', findRichText: true),
+      findsNothing,
+    );
+    expect(
+      find.textContaining('automatisch hinzugefügt', findRichText: true),
+      findsOneWidget,
+    );
+    await finish(tester);
+  });
+
+  testWidgets('Zurück von der Artikelseite landet wieder im Eintrag', (
+    tester,
+  ) async {
+    final (state, listId, hack) = await setUp(tester);
+    final session = state.currentGroup!;
+    session.apply(session.group.addToList(listId, hack, quantity: 2));
+    await tester.pump();
+    await openSheet(tester);
+    await tester.enterText(field('Notiz für alle'), 'vom Metzger');
+
+    await tester.tap(find.text('Artikel'));
+    await tester.pumpAndSettle();
+    expect(find.byTooltip('Endgültig löschen'), findsOne);
+
+    await tester.tap(find.byType(BackButton));
+    await tester.pumpAndSettle();
+    // Das Blatt ist wieder da, samt ungespeicherter Eingabe.
+    expect(text(tester, 'Notiz für alle'), 'vom Metzger');
+    await finish(tester);
+  });
+
+  testWidgets('Inhalt an der Artikelseite geändert: Speichern überschreibt '
+      'ihn nicht', (tester) async {
+    final (state, listId, hack) = await setUp(tester);
+    final session = state.currentGroup!;
+    session.apply(
+      session.group.updateArticle(hack, {'packSize': 500, 'packUnit': 'g'}),
+    );
+    session.apply(session.group.addToList(listId, hack, quantity: 2));
+    await tester.pump();
+    await openSheet(tester);
+
+    await tester.tap(find.text('Artikel'));
+    await tester.pumpAndSettle();
+    session.apply(
+      session.group.updateArticle(hack, {'packSize': 400, 'packUnit': 'g'}),
+    );
+    await tester.tap(find.byType(BackButton));
+    await tester.pumpAndSettle();
+    // Der Eintrag behält seinen Inhalt, der Artikel den neuen.
+    expect(text(tester, 'Inhalt je Packung'), '500');
+
+    await tester.tap(find.text('Speichern'));
+    await tester.pumpAndSettle();
+    expect(session.group.article(hack)!.packSize, 400);
+    await finish(tester);
+  });
+
+  testWidgets('Artikel auf der Artikelseite gelöscht: Blatt schließt sich', (
+    tester,
+  ) async {
+    final (state, listId, hack) = await setUp(tester);
+    final session = state.currentGroup!;
+    session.apply(session.group.addToList(listId, hack, quantity: 2));
+    await tester.pump();
+    await openSheet(tester);
+
+    await tester.tap(find.text('Artikel'));
+    await tester.pumpAndSettle();
+    session.apply(session.group.deleteArticle(hack));
+    await tester.tap(find.byType(BackButton));
+    await tester.pumpAndSettle();
+    expect(find.text('Speichern'), findsNothing);
+    await finish(tester);
+  });
 }
