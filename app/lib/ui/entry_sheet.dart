@@ -5,6 +5,7 @@ import '../state/group_session.dart';
 import 'article_page.dart';
 import 'auto_span.dart';
 import 'format.dart';
+import 'scope.dart';
 import 'unit_field.dart';
 
 /// Bearbeiten eines Listeneintrags: Menge, Einheit, Preis, Notizen.
@@ -153,6 +154,24 @@ class _EntrySheetState extends State<_EntrySheet> {
     return (_basePrice! * base.amount).round();
   }
 
+  /// Letzter Preis des Artikels, im gewählten Laden bevorzugt – wie in der
+  /// Liste.
+  PricePoint? get _last => widget.session.group.lastPrice(
+    widget.entry.articleId,
+    shopId: AppScope.of(context).shopFor(widget.session),
+  );
+
+  /// Letzter Grundpreis als Vorgabe, solange keiner eingetragen ist und er
+  /// zur aktuellen Grundeinheit passt. Er erscheint grau in den Feldern und
+  /// wird nicht gespeichert: Nur ein selbst eingetragener Preis gilt als
+  /// Preis dieses Einkaufs.
+  num? get _lastBasePrice {
+    if (_basePrice != null) return null;
+    final last = _last;
+    if (last?.base?.unit != _baseUnit) return null;
+    return last!.basePriceCents;
+  }
+
   /// Menge, für die [_total] gilt, wie [_base] sie annimmt; null, wenn bei
   /// Gewicht oder Volumen keine Menge bekannt ist.
   num? get _shownQuantity =>
@@ -296,7 +315,8 @@ class _EntrySheetState extends State<_EntrySheet> {
     // das Blatt darunter noch einmal gebaut wird, bevor es sich schließt.
     final article = group.article(widget.entry.articleId);
     if (article == null) return const SizedBox.shrink();
-    final last = group.lastPrice(article.id);
+    final last = _last;
+    final lastBase = _lastBasePrice;
     // Unten frei halten: Tastatur, sonst die Navigationsleiste, unter die
     // Android 15 (edge-to-edge) die App zeichnet.
     final bottom = MediaQuery.viewInsetsOf(context).bottom;
@@ -428,6 +448,12 @@ class _EntrySheetState extends State<_EntrySheet> {
                     decoration: InputDecoration(
                       labelText:
                           '€/${unitLabel(_twoFields ? _unit : _baseUnit)}',
+                      hintText: switch (lastBase) {
+                        final b? => formatCentsInput(
+                          (b * _shelfFactor).round(),
+                        ),
+                        null => null,
+                      },
                       // Immer da, damit nichts springt, wenn der Preis
                       // erscheint.
                       helperText: [
@@ -435,9 +461,11 @@ class _EntrySheetState extends State<_EntrySheet> {
                           final q? => formatQuantity(q, _unit),
                           null => 'Gesamt',
                         },
-                        switch (_total) {
-                          final t? => formatCents(t),
-                          null => '–',
+                        switch ((_total, lastBase, _base)) {
+                          (final t?, _, _) => formatCents(t),
+                          (null, final b?, final base?) =>
+                            '≈ ${formatCents((b * base.amount).round())}',
+                          _ => '–',
                         },
                       ].join(': '),
                       border: const OutlineInputBorder(),
@@ -455,6 +483,10 @@ class _EntrySheetState extends State<_EntrySheet> {
                       ),
                       decoration: InputDecoration(
                         labelText: '€/${unitLabel(_baseUnit)}',
+                        hintText: switch (lastBase) {
+                          final b? => formatCentsInput(b),
+                          null => null,
+                        },
                         helperText: 'Grundpreis',
                         border: const OutlineInputBorder(),
                       ),

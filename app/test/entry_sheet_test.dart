@@ -171,6 +171,46 @@ void main() {
     await finish(tester);
   });
 
+  testWidgets('Letzter Preis als Vorgabe, gespeichert wird er nicht', (
+    tester,
+  ) async {
+    final (state, listId, hack) = await setUp(tester);
+    final session = state.currentGroup!;
+    final group = session.group;
+    const pack = {'packSize': 500, 'packUnit': Units.gram};
+    session
+      ..apply(group.addToList(listId, hack, quantity: 2))
+      ..apply(group.updateEntry(listId, hack, {...pack, 'basePrice': 398}))
+      ..apply(group.setChecked(listId, hack, true))
+      ..apply(group.clearChecked(listId))
+      ..apply(group.addToList(listId, hack, quantity: 3))
+      ..apply(group.updateEntry(listId, hack, pack));
+    await tester.pump();
+    await openSheet(tester);
+
+    String? hint(String label) =>
+        tester.widget<TextField>(field(label)).decoration!.hintText;
+    expect(text(tester, '€/Packung'), '');
+    expect(hint('€/Packung'), '1,99');
+    expect(hint('€/kg'), '3,98');
+    expect(find.text('3 Packungen: ≈ ${formatCents(597)}'), findsOneWidget);
+
+    // Unverändert speichern: Der Eintrag bleibt ohne eigenen Preis.
+    await tester.tap(find.text('Speichern'));
+    await tester.pumpAndSettle();
+    expect(group.entries(listId).single.totalCents, isNull);
+
+    // Eingetippt gilt er als Preis dieses Einkaufs.
+    await openSheet(tester);
+    await tester.enterText(field('€/Packung'), '1,99');
+    await tester.pump();
+    expect(find.text('3 Packungen: ${formatCents(597)}'), findsOneWidget);
+    await tester.tap(find.text('Speichern'));
+    await tester.pumpAndSettle();
+    expect(group.entries(listId).single.totalCents, 597);
+    await finish(tester);
+  });
+
   testWidgets('Plus und Minus im Mengenfeld', (tester) async {
     final (state, listId, hack) = await setUp(tester);
     final session = state.currentGroup!;
