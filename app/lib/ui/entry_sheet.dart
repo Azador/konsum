@@ -365,6 +365,9 @@ class _EntrySheetState extends State<_EntrySheet> {
                       hintText: _auto?.unit == _unit
                           ? formatQuantity(_auto!.quantity, null)
                           : null,
+                      floatingLabelBehavior: _auto?.unit == _unit
+                          ? FloatingLabelBehavior.always
+                          : null,
                       helper: switch (_auto) {
                         final a? => Text.rich(
                           autoSpan(context, 'automatisch ${formatAmountOf(a)}'),
@@ -454,6 +457,11 @@ class _EntrySheetState extends State<_EntrySheet> {
                         ),
                         null => null,
                       },
+                      // Sonst steht die Beschriftung im leeren Feld und
+                      // verdeckt die Vorgabe, bis man hineintippt.
+                      floatingLabelBehavior: lastBase == null
+                          ? null
+                          : FloatingLabelBehavior.always,
                       // Immer da, damit nichts springt, wenn der Preis
                       // erscheint.
                       helperText: [
@@ -487,6 +495,9 @@ class _EntrySheetState extends State<_EntrySheet> {
                           final b? => formatCentsInput(b),
                           null => null,
                         },
+                        floatingLabelBehavior: lastBase == null
+                            ? null
+                            : FloatingLabelBehavior.always,
                         helperText: 'Grundpreis',
                         border: const OutlineInputBorder(),
                       ),

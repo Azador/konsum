@@ -193,6 +193,19 @@ void main() {
     expect(text(tester, '€/Packung'), '');
     expect(hint('€/Packung'), '1,99');
     expect(hint('€/kg'), '3,98');
+    // Sichtbar, ohne erst hineinzutippen.
+    double opacity(String text) => tester
+        .widget<AnimatedOpacity>(
+          find
+              .ancestor(
+                of: find.text(text),
+                matching: find.byType(AnimatedOpacity),
+              )
+              .first,
+        )
+        .opacity;
+    expect(opacity('1,99'), 1);
+    expect(opacity('3,98'), 1);
     expect(find.text('3 Packungen: ≈ ${formatCents(597)}'), findsOneWidget);
 
     // Unverändert speichern: Der Eintrag bleibt ohne eigenen Preis.
