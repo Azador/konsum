@@ -6,6 +6,7 @@ import 'package:intl/date_symbol_data_local.dart';
 import 'package:konsum/main.dart';
 import 'package:konsum/state/app_state.dart';
 import 'package:konsum/storage/store.dart';
+import 'package:konsum/ui/format.dart';
 import 'package:konsum_core/konsum_core.dart';
 
 void main() {
@@ -50,7 +51,7 @@ void main() {
     await finish(tester);
   });
 
-  testWidgets('Preis und Kilopreis rechnen sich gegenseitig um', (
+  testWidgets('Lose Ware: ein Feld für den Kilopreis, Gesamtpreis darunter', (
     tester,
   ) async {
     final (state, listId, hack) = await setUp(tester);
@@ -61,34 +62,32 @@ void main() {
     await tester.pump();
     await openSheet(tester);
 
-    // Kilopreis eingeben → Preis für 100 g.
+    // Am Regal steht der Kilopreis; ein zweites Feld gibt es nicht.
+    expect(find.text('Grundpreis'), findsNothing);
+    expect(find.text('100 g: –'), findsOneWidget);
     await tester.enterText(field('€/kg'), '9,90');
-    expect(text(tester, 'Preis (€)'), '0,99');
+    await tester.pump();
+    expect(find.text('100 g: ${formatCents(99)}'), findsOneWidget);
 
-    // Menge ändern → Preis über den Kilopreis.
+    // Menge ändern → Kilopreis bleibt, Gesamtpreis folgt.
     await tester.enterText(field('Menge'), '200');
-    expect(text(tester, 'Preis (€)'), '1,98');
+    await tester.pump();
+    expect(text(tester, '€/kg'), '9,90');
+    expect(find.text('200 g: ${formatCents(198)}'), findsOneWidget);
 
-    // Preis ändern → Kilopreis.
-    await tester.enterText(field('Preis (€)'), '2,50');
-    expect(text(tester, '€/kg'), '12,50');
-
-    // Kilopreis ändern → Preis.
     await tester.enterText(field('€/kg'), '10');
-    expect(text(tester, 'Preis (€)'), '2,00');
-
     await tester.tap(find.text('Speichern'));
     await tester.pumpAndSettle();
     final e = session.group.entries(listId).single;
     expect(e.quantity, 200);
     expect(e.basePrice, 1000);
     expect(e.totalCents, 200);
-    expect(find.text('2,00 €'), findsOneWidget);
-    expect(find.text('10,00 €/kg'), findsOneWidget);
+    expect(find.text(formatCents(200)), findsOneWidget);
+    expect(find.text(formatBasePrice(1000, Units.kilogram)), findsOneWidget);
     await finish(tester);
   });
 
-  testWidgets('Packungsgröße nachträglich: Preis bleibt beim Tippen', (
+  testWidgets('Packungsgröße nachträglich: Packungspreis bleibt beim Tippen', (
     tester,
   ) async {
     final (state, listId, hack) = await setUp(tester);
@@ -99,22 +98,23 @@ void main() {
     );
     await tester.pump();
     await openSheet(tester);
-    expect(text(tester, 'Preis (€)'), '2,99');
+    expect(text(tester, '€/Packung'), '2,99');
+    expect(find.text('Grundpreis'), findsNothing);
 
     // Zeichen für Zeichen, wie auf der Tastatur.
     for (final typed in ['5', '50', '500']) {
       await tester.enterText(field('Inhalt je Packung'), typed);
       await tester.pump();
-      expect(text(tester, 'Preis (€)'), '2,99');
+      expect(text(tester, '€/Packung'), '2,99');
     }
     expect(text(tester, '€/kg'), '5,98');
 
-    // Inhaltseinheit ändern: Preis bleibt, Kilopreis folgt.
+    // Inhaltseinheit ändern: Packungspreis bleibt, Kilopreis folgt.
     await tester.tap(find.text('g').last);
     await tester.pumpAndSettle();
     await tester.tap(find.text('kg').last);
     await tester.pumpAndSettle();
-    expect(text(tester, 'Preis (€)'), '2,99');
+    expect(text(tester, '€/Packung'), '2,99');
     expect(text(tester, '€/kg'), '0,01');
 
     await tester.tap(find.text('Speichern'));
@@ -126,29 +126,37 @@ void main() {
     await finish(tester);
   });
 
-  testWidgets('Packungsgröße: Preis je kg, Artikel merkt sich die Größe', (
-    tester,
-  ) async {
+  testWidgets('Packungsgröße: Preis je Packung und je kg, Artikel merkt sich '
+      'die Größe', (tester) async {
     final (state, listId, hack) = await setUp(tester);
     final session = state.currentGroup!;
     session.apply(session.group.addToList(listId, hack, quantity: 2));
     await tester.pump();
     await openSheet(tester);
 
-    // Ohne Einheit gilt Packung, Grundpreis je Packung.
-    expect(field('€/Packung'), findsOneWidget);
-    await tester.enterText(field('Preis (€)'), '3,98');
-    expect(text(tester, '€/Packung'), '1,99');
+    // Ohne Einheit gilt Packung; ohne Inhalt ist das der Grundpreis.
+    await tester.enterText(field('€/Packung'), '1,99');
+    await tester.pump();
+    expect(find.text('2 Packungen: ${formatCents(398)}'), findsOneWidget);
 
-    // Mit Packungsgröße wird daraus ein Kilopreis, der Preis bleibt.
+    // Mit Packungsgröße kommt der Kilopreis dazu, der Packungspreis bleibt.
     await tester.enterText(field('Inhalt je Packung'), '500');
     await tester.pump();
-    expect(text(tester, 'Preis (€)'), '3,98');
+    expect(text(tester, '€/Packung'), '1,99');
     expect(text(tester, '€/kg'), '3,98');
+    expect(find.text('Grundpreis'), findsOneWidget);
 
-    // Menge ändern → Preis über den Kilopreis.
+    // Menge ändern → nur der Gesamtpreis folgt.
     await tester.enterText(field('Menge'), '3');
-    expect(text(tester, 'Preis (€)'), '5,97');
+    await tester.pump();
+    expect(text(tester, '€/Packung'), '1,99');
+    expect(find.text('3 Packungen: ${formatCents(597)}'), findsOneWidget);
+
+    // Kilopreis ändern → Packungspreis.
+    await tester.enterText(field('€/kg'), '4');
+    await tester.pump();
+    expect(text(tester, '€/Packung'), '2,00');
+    expect(find.text('3 Packungen: ${formatCents(600)}'), findsOneWidget);
 
     await tester.tap(find.text('Speichern'));
     await tester.pumpAndSettle();
@@ -156,9 +164,63 @@ void main() {
     expect(e.unit, isNull);
     expect(e.packSize, 500);
     expect(e.packUnit, Units.gram);
+    expect(e.totalCents, 600);
     expect(session.group.article(hack)!.packSize, 500);
     expect(find.text('3 Packungen à 500 g'), findsOneWidget);
-    expect(find.text('3,98 €/kg'), findsOneWidget);
+    expect(find.text(formatBasePrice(400, Units.kilogram)), findsOneWidget);
+    await finish(tester);
+  });
+
+  testWidgets('Letzter Preis als Vorgabe, gespeichert wird er nicht', (
+    tester,
+  ) async {
+    final (state, listId, hack) = await setUp(tester);
+    final session = state.currentGroup!;
+    final group = session.group;
+    const pack = {'packSize': 500, 'packUnit': Units.gram};
+    session
+      ..apply(group.addToList(listId, hack, quantity: 2))
+      ..apply(group.updateEntry(listId, hack, {...pack, 'basePrice': 398}))
+      ..apply(group.setChecked(listId, hack, true))
+      ..apply(group.clearChecked(listId))
+      ..apply(group.addToList(listId, hack, quantity: 3))
+      ..apply(group.updateEntry(listId, hack, pack));
+    await tester.pump();
+    await openSheet(tester);
+
+    String? hint(String label) =>
+        tester.widget<TextField>(field(label)).decoration!.hintText;
+    expect(text(tester, '€/Packung'), '');
+    expect(hint('€/Packung'), '1,99');
+    expect(hint('€/kg'), '3,98');
+    // Sichtbar, ohne erst hineinzutippen.
+    double opacity(String text) => tester
+        .widget<AnimatedOpacity>(
+          find
+              .ancestor(
+                of: find.text(text),
+                matching: find.byType(AnimatedOpacity),
+              )
+              .first,
+        )
+        .opacity;
+    expect(opacity('1,99'), 1);
+    expect(opacity('3,98'), 1);
+    expect(find.text('3 Packungen: ≈ ${formatCents(597)}'), findsOneWidget);
+
+    // Unverändert speichern: Der Eintrag bleibt ohne eigenen Preis.
+    await tester.tap(find.text('Speichern'));
+    await tester.pumpAndSettle();
+    expect(group.entries(listId).single.totalCents, isNull);
+
+    // Eingetippt gilt er als Preis dieses Einkaufs.
+    await openSheet(tester);
+    await tester.enterText(field('€/Packung'), '1,99');
+    await tester.pump();
+    expect(find.text('3 Packungen: ${formatCents(597)}'), findsOneWidget);
+    await tester.tap(find.text('Speichern'));
+    await tester.pumpAndSettle();
+    expect(group.entries(listId).single.totalCents, 597);
     await finish(tester);
   });
 

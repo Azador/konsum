@@ -5,6 +5,7 @@ import '../state/group_session.dart';
 import 'article_page.dart';
 import 'auto_span.dart';
 import 'format.dart';
+import 'scope.dart';
 import 'unit_field.dart';
 
 /// Bearbeiten eines Listeneintrags: Menge, Einheit, Preis, Notizen.
@@ -40,16 +41,18 @@ class _EntrySheetState extends State<_EntrySheet> {
         ? ''
         : formatQuantity(widget.entry.packSize, null),
   );
-  late final _price = TextEditingController(
-    text: switch (widget.entry.totalCents) {
-      final c? => formatCentsInput(c),
-      null => '',
-    },
-  );
 
   /// Preis je Grundeinheit in Cent, ungerundet, damit Preis und Grundpreis
-  /// beim Hin- und Herrechnen zusammenpassen.
+  /// beim Hin- und Herrechnen zusammenpassen. Daraus folgen der Preis je
+  /// Einheit und der Gesamtpreis.
   late num? _basePrice = widget.entry.basePriceCents;
+
+  /// Preis je Einheit, wie er am Regal steht (€/Dose, €/kg, €/Packung).
+  late final _shelf = TextEditingController(
+    text: _basePrice == null
+        ? ''
+        : formatCentsInput((_basePrice! * _shelfFactor).round()),
+  );
   late final _basePriceText = TextEditingController(
     text: _basePrice == null ? '' : formatCentsInput(_basePrice!),
   );
@@ -67,7 +70,7 @@ class _EntrySheetState extends State<_EntrySheet> {
     for (final c in [
       _quantity,
       _packSize,
-      _price,
+      _shelf,
       _basePriceText,
       _note,
       _privateNote,
@@ -129,57 +132,94 @@ class _EntrySheetState extends State<_EntrySheet> {
     packUnit: _packUnit,
   )!.unit;
 
-  /// Menge, Einheit oder Packungsgröße geändert: Preis über den Grundpreis
-  /// neu berechnen; ist nur der Preis bekannt, den Grundpreis aus ihm.
-  ///
-  /// Mit [keepPrice] (Inhalt je Packung geändert) bleibt der Preis und der
-  /// Grundpreis folgt: Eine Packung kostet gleich viel, egal was man als
-  /// Inhalt einträgt. Sonst würde beim Tippen von „500“ g der Kilopreis
-  /// schon bei „5“ g festgelegt und der Preis auf das Hundertfache wachsen.
-  void _amountChanged({bool keepPrice = false}) {
+  /// Ob Preis je Einheit und Grundpreis verschieden sind und daher zwei
+  /// Felder brauchen: nur bei Zähleinheiten mit Inhalt (€/Dose und €/kg).
+  /// Sonst steht am Regal der Grundpreis selbst (€/kg, €/Packung).
+  bool get _twoFields => Units.isCount(_unit) && _baseUnit != _unit;
+
+  /// Grundeinheiten je Einheit: Preis je Einheit = Grundpreis × Faktor.
+  num get _shelfFactor => _twoFields
+      ? baseAmount(
+          quantity: 1,
+          unit: _unit,
+          packSize: _packSizeValue,
+          packUnit: _packUnit,
+        )!.amount
+      : 1;
+
+  /// Gesamtpreis in Cent für die geltende Menge, falls bekannt.
+  int? get _total {
     final base = _base;
-    if (_baseUnit != _shownBaseUnit) {
-      // Andere Grundeinheit (z. B. €/kg → €/Dose): der alte Grundpreis passt
-      // nicht mehr. Der Preis bleibt, der Grundpreis wird neu berechnet.
+    if (_basePrice == null || base == null) return null;
+    return (_basePrice! * base.amount).round();
+  }
+
+  /// Letzter Preis des Artikels, im gewählten Laden bevorzugt – wie in der
+  /// Liste.
+  PricePoint? get _last => widget.session.group.lastPrice(
+    widget.entry.articleId,
+    shopId: AppScope.of(context).shopFor(widget.session),
+  );
+
+  /// Letzter Grundpreis als Vorgabe, solange keiner eingetragen ist und er
+  /// zur aktuellen Grundeinheit passt. Er erscheint grau in den Feldern und
+  /// wird nicht gespeichert: Nur ein selbst eingetragener Preis gilt als
+  /// Preis dieses Einkaufs.
+  num? get _lastBasePrice {
+    if (_basePrice != null) return null;
+    final last = _last;
+    if (last?.base?.unit != _baseUnit) return null;
+    return last!.basePriceCents;
+  }
+
+  /// Menge, für die [_total] gilt, wie [_base] sie annimmt; null, wenn bei
+  /// Gewicht oder Volumen keine Menge bekannt ist.
+  num? get _shownQuantity =>
+      parseNumber(_quantity.text) ??
+      (_auto?.unit == _unit ? _auto!.quantity : null) ??
+      (Units.isCount(_unit) ? 1 : null);
+
+  /// Menge, Einheit oder Packungsgröße geändert. Ändert sich dabei, worauf
+  /// sich der Preis je Einheit bezieht (anderer Inhalt, andere
+  /// Grundeinheit), bleibt der Preis je Einheit – er steht so am Regal – und
+  /// der Grundpreis folgt. Beim Tippen von „500“ g gilt so jeder
+  /// Zwischenstand mit demselben Packungspreis. Sonst ändert sich nur der
+  /// Gesamtpreis.
+  void _amountChanged() {
+    final factor = _shelfFactor;
+    if (factor != _shownFactor || _baseUnit != _shownBaseUnit) {
+      _shownFactor = factor;
       _shownBaseUnit = _baseUnit;
-      _setBasePrice(null);
-    }
-    if (keepPrice && parseCents(_price.text) != null) _setBasePrice(null);
-    if (base != null && base.amount > 0) {
-      if (_basePrice != null) {
-        _price.text = formatCentsInput((_basePrice! * base.amount).round());
-      } else if (parseCents(_price.text) case final cents?) {
-        _setBasePrice(cents / base.amount);
-      }
+      final shelf = parseCents(_shelf.text);
+      _setBasePrice(shelf == null || factor <= 0 ? null : shelf / factor);
     }
     setState(() {});
   }
 
-  /// Grundeinheit, zu der [_basePrice] gehört.
+  /// Bezug, zu dem der angezeigte Preis je Einheit gehört.
+  late num _shownFactor;
   late String _shownBaseUnit;
 
   @override
   void initState() {
     super.initState();
+    _shownFactor = _shelfFactor;
     _shownBaseUnit = _baseUnit;
   }
 
-  void _priceChanged(String text) {
+  void _shelfChanged(String text) {
     final cents = parseCents(text);
-    final base = _base;
-    if (cents == null) {
-      _setBasePrice(null);
-    } else if (base != null && base.amount > 0) {
-      _setBasePrice(cents / base.amount);
-    }
+    final factor = _shelfFactor;
+    _setBasePrice(cents == null || factor <= 0 ? null : cents / factor);
+    setState(() {});
   }
 
   void _basePriceChanged(String text) {
     _basePrice = parseCents(text);
-    final base = _base;
-    if (_basePrice != null && base != null) {
-      _price.text = formatCentsInput((_basePrice! * base.amount).round());
-    }
+    _shelf.text = _basePrice == null
+        ? ''
+        : formatCentsInput((_basePrice! * _shelfFactor).round());
+    setState(() {});
   }
 
   void _setBasePrice(num? cents) {
@@ -224,7 +264,11 @@ class _EntrySheetState extends State<_EntrySheet> {
       'packSize': packSize,
       'packUnit': packSize == null ? null : _packUnit,
       'note': note.isEmpty ? null : note,
-      'price': parseCents(_price.text),
+      // Ohne Grundpreis und ohne Menge, aus der er sich ergäbe, bleibt ein
+      // alter Gesamtpreis stehen; ist der Preis geleert, fällt er weg.
+      'price': _basePrice == null
+          ? (e.basePriceCents == null ? e.price : null)
+          : _total,
       'basePrice': _basePrice,
     };
     final old = <String, Object?>{
@@ -271,7 +315,8 @@ class _EntrySheetState extends State<_EntrySheet> {
     // das Blatt darunter noch einmal gebaut wird, bevor es sich schließt.
     final article = group.article(widget.entry.articleId);
     if (article == null) return const SizedBox.shrink();
-    final last = group.lastPrice(article.id);
+    final last = _last;
+    final lastBase = _lastBasePrice;
     // Unten frei halten: Tastatur, sonst die Navigationsleiste, unter die
     // Android 15 (edge-to-edge) die App zeichnet.
     final bottom = MediaQuery.viewInsetsOf(context).bottom;
@@ -319,6 +364,9 @@ class _EntrySheetState extends State<_EntrySheet> {
                       // Leer: Es gilt die Menge der Automatik.
                       hintText: _auto?.unit == _unit
                           ? formatQuantity(_auto!.quantity, null)
+                          : null,
+                      floatingLabelBehavior: _auto?.unit == _unit
+                          ? FloatingLabelBehavior.always
                           : null,
                       helper: switch (_auto) {
                         final a? => Text.rich(
@@ -372,7 +420,7 @@ class _EntrySheetState extends State<_EntrySheet> {
                         hintText: 'optional',
                         border: const OutlineInputBorder(),
                       ),
-                      onChanged: (_) => _amountChanged(keepPrice: true),
+                      onChanged: (_) => _amountChanged(),
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -383,7 +431,7 @@ class _EntrySheetState extends State<_EntrySheet> {
                       allowNone: false,
                       onChanged: (u) {
                         _packUnit = u ?? Units.gram;
-                        _amountChanged(keepPrice: true);
+                        _amountChanged();
                       },
                     ),
                   ),
@@ -396,33 +444,67 @@ class _EntrySheetState extends State<_EntrySheet> {
               children: [
                 Expanded(
                   child: TextField(
-                    controller: _basePriceText,
+                    controller: _shelf,
                     keyboardType: const TextInputType.numberWithOptions(
                       decimal: true,
                     ),
                     decoration: InputDecoration(
-                      labelText: '€/${unitLabel(_baseUnit)}',
-                      helperText: 'Grundpreis',
+                      labelText:
+                          '€/${unitLabel(_twoFields ? _unit : _baseUnit)}',
+                      hintText: switch (lastBase) {
+                        final b? => formatCentsInput(
+                          (b * _shelfFactor).round(),
+                        ),
+                        null => null,
+                      },
+                      // Sonst steht die Beschriftung im leeren Feld und
+                      // verdeckt die Vorgabe, bis man hineintippt.
+                      floatingLabelBehavior: lastBase == null
+                          ? null
+                          : FloatingLabelBehavior.always,
+                      // Immer da, damit nichts springt, wenn der Preis
+                      // erscheint.
+                      helperText: [
+                        switch (_shownQuantity) {
+                          final q? => formatQuantity(q, _unit),
+                          null => 'Gesamt',
+                        },
+                        switch ((_total, lastBase, _base)) {
+                          (final t?, _, _) => formatCents(t),
+                          (null, final b?, final base?) =>
+                            '≈ ${formatCents((b * base.amount).round())}',
+                          _ => '–',
+                        },
+                      ].join(': '),
                       border: const OutlineInputBorder(),
                     ),
-                    onChanged: _basePriceChanged,
+                    onChanged: _shelfChanged,
                   ),
                 ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: TextField(
-                    controller: _price,
-                    keyboardType: const TextInputType.numberWithOptions(
-                      decimal: true,
+                if (_twoFields) ...[
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: TextField(
+                      controller: _basePriceText,
+                      keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true,
+                      ),
+                      decoration: InputDecoration(
+                        labelText: '€/${unitLabel(_baseUnit)}',
+                        hintText: switch (lastBase) {
+                          final b? => formatCentsInput(b),
+                          null => null,
+                        },
+                        floatingLabelBehavior: lastBase == null
+                            ? null
+                            : FloatingLabelBehavior.always,
+                        helperText: 'Grundpreis',
+                        border: const OutlineInputBorder(),
+                      ),
+                      onChanged: _basePriceChanged,
                     ),
-                    decoration: const InputDecoration(
-                      labelText: 'Preis (€)',
-                      helperText: 'für diese Menge',
-                      border: OutlineInputBorder(),
-                    ),
-                    onChanged: _priceChanged,
                   ),
-                ),
+                ],
               ],
             ),
             if (last != null)
