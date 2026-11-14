@@ -18,13 +18,22 @@ const seedPresets = <(String, Color)>[
 /// eines, das aus dem zufälligen Farbton eine kräftige Farbe macht.
 bool _isGrey(Color seed) => HSVColor.fromColor(seed).saturation < 0.1;
 
-ThemeData buildTheme(Color? seed, Brightness brightness) => ThemeData(
-  colorScheme: ColorScheme.fromSeed(
+ThemeData buildTheme(Color? seed, Brightness brightness) {
+  final scheme = ColorScheme.fromSeed(
     seedColor: seed ?? defaultSeed,
     brightness: brightness,
     dynamicSchemeVariant: seed != null && _isGrey(seed)
         ? DynamicSchemeVariant.monochrome
         : DynamicSchemeVariant.tonalSpot,
-  ),
-  fontFamily: 'Roboto',
-);
+  );
+  return ThemeData(
+    colorScheme: scheme,
+    fontFamily: 'Roboto',
+    // Vorgaben (letzter Preis, automatische Menge) deutlich blasser als
+    // Eingetragenes; der Standard (onSurfaceVariant) ist im dunklen Modus
+    // kaum davon zu unterscheiden.
+    inputDecorationTheme: InputDecorationThemeData(
+      hintStyle: TextStyle(color: scheme.onSurface.withValues(alpha: 0.4)),
+    ),
+  );
+}
