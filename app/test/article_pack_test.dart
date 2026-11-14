@@ -30,7 +30,7 @@ void main() {
           ),
         );
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Packungsgröße'));
+    await tester.tap(find.text('Inhalt je Packung'));
     await tester.pumpAndSettle();
     return (session, article.id);
   }
@@ -71,12 +71,29 @@ void main() {
     await tester.pumpAndSettle();
     expect(session.group.article(id)!.packUnit, Units.millilitre);
 
-    await tester.tap(find.text('Packungsgröße'));
+    await tester.tap(find.text('Inhalt je Packung'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Keine'));
     await tester.pumpAndSettle();
     expect(session.group.article(id)!.packSize, isNull);
     expect(session.group.article(id)!.packUnit, isNull);
+    await finish(tester);
+  });
+
+  testWidgets('Inhalt nur bei Zähleinheiten', (tester) async {
+    final (session, id) = await open(tester);
+    await tester.tap(find.text('Abbrechen'));
+    await tester.pumpAndSettle();
+    session.apply(
+      session.group.updateArticle(id, {'defaultUnit': Units.crate}),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Inhalt je Kiste'), findsOne);
+    session.apply(
+      session.group.updateArticle(id, {'defaultUnit': Units.kilogram}),
+    );
+    await tester.pumpAndSettle();
+    expect(find.textContaining('Inhalt je'), findsNothing);
     await finish(tester);
   });
 }

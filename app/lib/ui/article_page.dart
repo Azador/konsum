@@ -13,7 +13,7 @@ import 'scan.dart';
 import 'scope.dart';
 import 'unit_field.dart';
 
-/// Einzelner Artikel: Name, Kategorie, Standardeinheit, wiederkehrend,
+/// Einzelner Artikel: Name, Kategorie, Einheit und Inhalt, wiederkehrend,
 /// Barcodes, Preishistorie, Käufe, endgültiges Löschen.
 class ArticlePage extends StatelessWidget {
   const ArticlePage({
@@ -40,6 +40,8 @@ class ArticlePage extends StatelessWidget {
     final purchases = group.purchasesOf(articleId: articleId);
     final barcodes = group.barcodesOf(articleId);
     final heading = Theme.of(context).textTheme.titleMedium;
+    final packLabel =
+        'Inhalt je ${unitLabel(article.defaultUnit ?? Units.pack)}';
 
     return Scaffold(
       appBar: AppBar(
@@ -98,37 +100,44 @@ class ArticlePage extends StatelessWidget {
           ),
           const SizedBox(height: 12),
           UnitField(
-            label: 'Standardeinheit',
+            label: 'Einheit auf der Liste',
+            helperText:
+                'Wird beim Hinzufügen zur Liste vorgegeben, z. B. kg für '
+                'lose Ware. Ohne Angabe: Packung.',
             value: article.defaultUnit,
             onChanged: (v) => session.apply(
               group.updateArticle(articleId, {'defaultUnit': v}),
             ),
           ),
-          ListTile(
-            contentPadding: EdgeInsets.zero,
-            leading: const Icon(Icons.scale_outlined),
-            title: const Text('Packungsgröße'),
-            subtitle: Text(
-              article.packSize == null
-                  ? 'Keine (z. B. 500 g, 1,5 l)'
-                  : formatQuantity(article.packSize, article.packUnit),
+          // Der Inhalt gehört zur Einheit darüber („1 Kiste à 20 Flaschen“)
+          // und ergibt nur bei Zähleinheiten Sinn, nicht bei kg oder l.
+          if (Units.isCount(article.defaultUnit))
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: const Icon(Icons.scale_outlined),
+              title: Text(packLabel),
+              subtitle: Text(
+                article.packSize == null
+                    ? 'Keiner (z. B. 500 g, 1,5 l) – für den Preis je kg/l'
+                    : formatQuantity(article.packSize, article.packUnit),
+              ),
+              trailing: const Icon(Icons.edit_outlined),
+              onTap: () async {
+                final result = await showPackSizeDialog(
+                  context,
+                  size: article.packSize,
+                  unit: article.packUnit,
+                  title: packLabel,
+                );
+                if (result == null) return;
+                session.apply(
+                  group.updateArticle(articleId, {
+                    'packSize': result.size,
+                    'packUnit': result.size == null ? null : result.unit,
+                  }),
+                );
+              },
             ),
-            trailing: const Icon(Icons.edit_outlined),
-            onTap: () async {
-              final result = await showPackSizeDialog(
-                context,
-                size: article.packSize,
-                unit: article.packUnit,
-              );
-              if (result == null) return;
-              session.apply(
-                group.updateArticle(articleId, {
-                  'packSize': result.size,
-                  'packUnit': result.size == null ? null : result.unit,
-                }),
-              );
-            },
-          ),
           SwitchListTile(
             contentPadding: EdgeInsets.zero,
             secondary: const Icon(Icons.autorenew),

@@ -12,16 +12,18 @@ Future<PackSize?> showPackSizeDialog(
   BuildContext context, {
   num? size,
   String? unit,
+  String title = 'Packungsgröße',
 }) => showDialog<PackSize>(
   context: context,
-  builder: (_) => _PackSizeDialog(size: size, unit: unit),
+  builder: (_) => _PackSizeDialog(size: size, unit: unit, title: title),
 );
 
 class _PackSizeDialog extends StatefulWidget {
-  const _PackSizeDialog({this.size, this.unit});
+  const _PackSizeDialog({this.size, this.unit, required this.title});
 
   final num? size;
   final String? unit;
+  final String title;
 
   @override
   State<_PackSizeDialog> createState() => _PackSizeDialogState();
@@ -52,7 +54,7 @@ class _PackSizeDialogState extends State<_PackSizeDialog> {
 
   @override
   Widget build(BuildContext context) => AlertDialog(
-    title: const Text('Packungsgröße'),
+    title: Text(widget.title),
     content: Row(
       children: [
         Expanded(
