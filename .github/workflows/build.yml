@@ -38,7 +38,7 @@ jobs:
     name: Tests
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           # Beim Start von Hand der gewählte Branch, sonst der des Ereignisses.
           ref: ${{ inputs.branch || github.ref }}
@@ -62,11 +62,11 @@ jobs:
     needs: test
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           # Beim Start von Hand der gewählte Branch, sonst der des Ereignisses.
           ref: ${{ inputs.branch || github.ref }}
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@v6
         with:
           distribution: temurin
           java-version: 17
@@ -118,7 +118,7 @@ jobs:
     needs: test
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           # Beim Start von Hand der gewählte Branch, sonst der des Ereignisses.
           ref: ${{ inputs.branch || github.ref }}
@@ -153,7 +153,7 @@ jobs:
     needs: test
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           # Beim Start von Hand der gewählte Branch, sonst der des Ereignisses.
           ref: ${{ inputs.branch || github.ref }}
@@ -175,7 +175,7 @@ jobs:
           frb="$(sed -n "s/.*codegenVersion => '\(.*\)';/\1/p" \
             "$dir/lib/src/generated/frb_generated.dart")"
           echo "FRB_VERSION=$frb" >> "$GITHUB_ENV"
-      - uses: actions/cache@v4
+      - uses: actions/cache@v6
         with:
           path: |
             ~/.cargo/bin/flutter_rust_bridge_codegen
