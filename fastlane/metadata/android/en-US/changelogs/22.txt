@@ -1,0 +1,4 @@
+• When editing an entry you enter the shelf price (e.g. €/pack); the base price (€/kg) is on the right, the total below.
+• Without a price of its own, the last price is shown as a suggestion.
+• Suggestions in input fields are clearly fainter.
+• Item page: "unit on the list" and "content per …" are explained.

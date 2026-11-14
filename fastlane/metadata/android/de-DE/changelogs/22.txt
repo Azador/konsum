@@ -1,0 +1,4 @@
+• Beim Bearbeiten eines Eintrags gibt man den Preis vom Regal ein (z. B. €/Packung); rechts steht der Grundpreis (€/kg), der Gesamtpreis darunter.
+• Ohne eigenen Preis steht der letzte Preis als Vorgabe im Feld.
+• Vorgaben in Eingabefeldern sind deutlich blasser.
+• Artikelseite: „Einheit auf der Liste“ und „Inhalt je …“ sind erklärt.
