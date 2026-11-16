@@ -2,6 +2,11 @@ allprojects {
     repositories {
         google()
         mavenCentral()
+        // Tesseract4Android (Kassenbons) gibt es nur über JitPack; nur diese
+        // Gruppe von dort laden.
+        maven("https://jitpack.io") {
+            content { includeGroup("cz.adaptech.tesseract4android") }
+        }
     }
 }
 

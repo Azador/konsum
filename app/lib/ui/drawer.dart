@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../services/receipt_ocr.dart';
 import '../state/group_session.dart';
 import 'account_page.dart';
 import 'articles_page.dart';
@@ -8,6 +9,7 @@ import 'categories_page.dart';
 import 'dialogs.dart';
 import 'group_page.dart';
 import 'purchases_page.dart';
+import 'receipt_page.dart';
 import 'scope.dart';
 import 'shops_page.dart';
 import 'theme.dart';
@@ -130,6 +132,14 @@ class GroupDrawer extends StatelessWidget {
             title: const Text('Käufe'),
             onTap: () => _push(context, PurchasesPage(session: current)),
           ),
+          if (receiptScanAvailable)
+            ListTile(
+              contentPadding: const EdgeInsets.only(left: 28, right: 16),
+              leading: const Icon(Icons.receipt_long_outlined),
+              title: const Text('Kassenbon erfassen'),
+              subtitle: const Text('Test'),
+              onTap: () => _push(context, ReceiptPage(session: current)),
+            ),
         ],
         if (matrix != null) ...[
           const Divider(indent: 28, endIndent: 28),

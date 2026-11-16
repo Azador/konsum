@@ -72,3 +72,8 @@ kotlin {
 flutter {
     source = "../.."
 }
+
+dependencies {
+    // Texterkennung für Kassenbons (Apache-2.0, Tesseract 5 + Leptonica).
+    implementation("cz.adaptech.tesseract4android:tesseract4android:4.9.0")
+}

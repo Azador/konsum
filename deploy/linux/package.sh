@@ -88,7 +88,7 @@ Version: $version
 Architecture: $arch
 Maintainer: Azadoro <konsum@azadoro.de>
 Depends: $depends
-Recommends: gnome-keyring | kwalletmanager | keepassxc
+Recommends: gnome-keyring | kwalletmanager | keepassxc, tesseract-ocr
 Section: utils
 Priority: optional
 Homepage: https://konsum.azadoro.de
