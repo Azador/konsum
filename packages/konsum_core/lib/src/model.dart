@@ -11,6 +11,9 @@ abstract final class Types {
   static const purchase = 'purchase';
   static const price = 'price';
 
+  /// Gelernte Zuordnung einer Bonzeile zu einem Artikel, je Laden.
+  static const receiptName = 'receiptName';
+
   /// Einstellungen der Gruppe; ein einziges Objekt mit der ID `group`.
   static const settings = 'settings';
 }
@@ -288,6 +291,25 @@ class PricePoint {
 
   /// Preis in Cent je Grundeinheit, falls berechenbar.
   double? get basePriceCents => pricePerBase(cents, base);
+}
+
+/// Gelernte Zuordnung „so steht es auf dem Bon von Laden X“ → Artikel.
+class ReceiptName {
+  const ReceiptName({
+    required this.id,
+    required this.text,
+    this.shopId,
+    this.articleId,
+  });
+
+  final String id;
+
+  /// Bezeichnung wie auf dem Bon (OCR-Text beim Bestätigen).
+  final String text;
+  final String? shopId;
+
+  /// Zugeordneter Artikel; null heißt „Zeile ignorieren“ (Pfand, Tüte, …).
+  final String? articleId;
 }
 
 /// Produktdaten zu einem Barcode, z. B. von Open Food Facts.

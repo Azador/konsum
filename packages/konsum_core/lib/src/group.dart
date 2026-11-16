@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'amount.dart';
 import 'hlc.dart';
 import 'model.dart';
+import 'receipt_match.dart' show normalizeReceiptText;
 import 'replica.dart';
 
 /// Daten einer Gruppe (Familie, Verein, …) mit Abfragen und Befehlen.
@@ -475,7 +476,7 @@ class Group {
       _write(Types.article, id, fields);
 
   /// Entfernt den Artikel endgültig, samt Barcodes, Listeneinträgen,
-  /// Käufen und Preishistorie.
+  /// Käufen, Preishistorie und gelernten Bonnamen.
   List<Change> deleteArticle(String id) => [
     ..._delete(Types.article, id),
     for (final code in barcodesOf(id)) ..._delete(Types.barcode, code),
@@ -484,6 +485,7 @@ class Group {
         if (replica.get(type, objectId)!['articleId'] == id)
           ..._delete(type, objectId),
     ...deletePriceHistory(articleId: id),
+    ...forgetReceiptNamesOf(id),
   ];
 
   /// Ordnet einen Barcode einem Artikel zu. Ein Barcode gehört immer genau
@@ -706,6 +708,50 @@ class Group {
   List<Change> deletePriceHistory({String? articleId, String? shopId}) => [
     for (final p in priceHistory(articleId: articleId, shopId: shopId))
       ..._delete(Types.price, p.id),
+  ];
+
+  // ------------------------------------------------------------ Kassenbon
+
+  /// Gelernte Bonnamen, optional nur eines Ladens.
+  List<ReceiptName> receiptNames({String? shopId}) => [
+    for (final id in replica.ids(Types.receiptName))
+      if (replica.get(Types.receiptName, id) case final f?)
+        if (shopId == null || f['shopId'] == shopId)
+          ReceiptName(
+            id: id,
+            text: f['text'] as String? ?? '',
+            shopId: f['shopId'] as String?,
+            articleId: f['articleId'] as String?,
+          ),
+  ];
+
+  /// Merkt sich, dass [text] auf Bons des Ladens [shopId] den Artikel
+  /// [articleId] meint (null: Zeile ignorieren). Die ID hängt nur von Laden
+  /// und normalisiertem Text ab, damit zwei Geräte, die dasselbe lernen,
+  /// dasselbe Objekt schreiben.
+  List<Change> learnReceiptName(
+    String text,
+    String? articleId, {
+    String? shopId,
+  }) => _write(Types.receiptName, receiptNameId(text, shopId: shopId), {
+    'text': text,
+    'shopId': shopId,
+    'articleId': articleId,
+    deletedField: false,
+  });
+
+  List<Change> forgetReceiptName(String id) => _delete(Types.receiptName, id);
+
+  /// ID eines gelernten Bonnamens: Laden und Text ohne Leer- und
+  /// Satzzeichen, in Großbuchstaben.
+  static String receiptNameId(String text, {String? shopId}) =>
+      '${shopId ?? '-'}/${normalizeReceiptText(text)}';
+
+  /// Löscht alle gelernten Bonnamen eines Artikels (z. B. wenn der Artikel
+  /// gelöscht wird).
+  List<Change> forgetReceiptNamesOf(String articleId) => [
+    for (final n in receiptNames())
+      if (n.articleId == articleId) ..._delete(Types.receiptName, n.id),
   ];
 
   // ------------------------------------------------------------------ intern

@@ -15,3 +15,6 @@ app/web/fonts/fallback/
 .vscode/
 
 *~
+
+# Private Testdaten (Kassenbon-Fotos u. ä.), nie ins Repo
+test-privat/

@@ -449,6 +449,28 @@ nicht tun. Übertragen werden nur `autoAdded`, `autoExcluded` und
 | `shopId` | ID \| null | |
 | `millis` | Ganzzahl | Zeitpunkt |
 
+### `receiptName` – gelernte Bonbezeichnung
+
+Kassenbons kürzen Artikelnamen ab („OA ORIGINAL SCHEIB“). Bestätigt jemand
+die Zuordnung einer Bonzeile, merkt sich die Gruppe sie je Laden.
+
+ID: `<shopId>/<TEXT>`, ohne Laden `-/<TEXT>`. `<TEXT>` ist die Bezeichnung
+in Großbuchstaben, Umlaute ausgeschrieben (Ä → AE, ß → SS), ohne alles
+außer A–Z und 0–9. Zwei Geräte, die dasselbe lernen, schreiben so dasselbe
+Objekt.
+
+| Feld | Typ | |
+|---|---|---|
+| `text` | Text | Bezeichnung wie erkannt |
+| `shopId` | ID \| null | |
+| `articleId` | ID \| null | zugeordneter Artikel; `null` = Zeile ignorieren (Pfand, Tüte, …) |
+| `_deleted` | bool | |
+
+Beim Lesen eines Bons gilt eine gelernte Bezeichnung desselben Ladens als
+Treffer, wenn sie dem erkannten Text ähnlich genug ist (OCR liest nicht
+jedes Mal gleich); wie ähnlich, entscheidet jeder Client selbst. Wird der
+Artikel gelöscht, werden seine Bezeichnungen mitgelöscht.
+
 ### `settings` – Einstellungen der Gruppe
 
 Ein einziges Objekt mit der ID `group`.
