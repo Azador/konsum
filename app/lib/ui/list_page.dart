@@ -291,17 +291,22 @@ class _ListPageState extends State<ListPage> {
         if (total.cents > 0)
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-            child: Row(
-              children: [
-                Text(
-                  'Summe ca. ${formatCents(total.cents)}',
-                  style: Theme.of(context).textTheme.titleSmall,
-                ),
-                // Während des Einkaufs: wie viel noch in den Wagen kommt.
-                if (checked.isNotEmpty && open.isNotEmpty)
-                  Text('  · offen ${formatCents(total.open)}'),
-                if (total.unknown > 0) Text('  (${total.unknown} ohne Preis)'),
-              ],
+            // Darf umbrechen: Mit großer Schrift passt „offen …“ und
+            // „(… ohne Preis)“ nicht immer in eine Zeile.
+            child: Text.rich(
+              TextSpan(
+                children: [
+                  TextSpan(
+                    text: 'Summe ca. ${formatCents(total.cents)}',
+                    style: Theme.of(context).textTheme.titleSmall,
+                  ),
+                  // Während des Einkaufs: wie viel noch in den Wagen kommt.
+                  if (checked.isNotEmpty && open.isNotEmpty)
+                    TextSpan(text: '  · offen ${formatCents(total.open)}'),
+                  if (total.unknown > 0)
+                    TextSpan(text: '  (${total.unknown} ohne Preis)'),
+                ],
+              ),
             ),
           ),
       ],
@@ -408,6 +413,29 @@ class _EntryTile extends StatelessWidget {
     final basePrice = estimated
         ? group.lastPrice(entry.articleId, shopId: shopId)?.basePriceCents
         : entry.basePriceCents;
+    // Preis je Packung (Dose, Flasche, …), wie er groß am Regal steht; bei
+    // loser Ware der Preis je kg bzw. l. Nur, wenn er nicht schon der
+    // Gesamtpreis ist (Menge 1).
+    final amount = entry.effectiveAmount;
+    final unit = amount.unit ?? Units.pack;
+    final perUnit = Units.isCount(unit)
+        ? Amount(
+            quantity: 1,
+            unit: unit,
+            packSize: amount.packSize,
+            packUnit: amount.packUnit,
+          ).base
+        : (amount: 1, unit: base?.unit ?? unit);
+    final shelfUnit = Units.isCount(unit) ? unit : perUnit?.unit;
+    final shelfPrice =
+        basePrice != null &&
+            base != null &&
+            perUnit != null &&
+            shelfUnit != null &&
+            perUnit.unit == base.unit &&
+            base.amount != perUnit.amount
+        ? (basePrice * perUnit.amount).round()
+        : null;
     final muted = entry.checked
         ? TextStyle(
             decoration: TextDecoration.lineThrough,
@@ -458,35 +486,52 @@ class _EntryTile extends StatelessWidget {
         visualDensity: const VisualDensity(vertical: -4),
         minVerticalPadding: 5,
         minTileHeight: 0,
+        // Rechts reicht wenig Rand neben dem Stift; der Platz gehört dem Namen.
+        contentPadding: const EdgeInsetsDirectional.only(start: 16, end: 8),
         controlAffinity: ListTileControlAffinity.leading,
         value: entry.checked,
         onChanged: (v) => session.apply(
           group.setChecked(entry.listId, entry.articleId, v ?? false),
         ),
-        title: Text(article.name, style: muted),
-        subtitle: details.isEmpty
-            ? null
-            : Text.rich(TextSpan(children: details), style: muted),
-        secondary: Row(
-          mainAxisSize: MainAxisSize.min,
+        // Der Name reicht bis an den Gesamtpreis, die Details bis an den
+        // Preis je Packung darunter.
+        title: Row(
+          crossAxisAlignment: CrossAxisAlignment.baseline,
+          textBaseline: TextBaseline.alphabetic,
           children: [
+            Expanded(child: Text(article.name, style: muted)),
             if (price != null)
-              Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.end,
+              Padding(
+                padding: const EdgeInsets.only(left: 8),
+                child: Text(
+                  estimated ? '≈ ${formatCents(price)}' : formatCents(price),
+                  style: muted,
+                ),
+              ),
+          ],
+        ),
+        subtitle: details.isEmpty && shelfPrice == null
+            ? null
+            : Row(
+                crossAxisAlignment: CrossAxisAlignment.baseline,
+                textBaseline: TextBaseline.alphabetic,
                 children: [
-                  Text(
-                    estimated ? '≈ ${formatCents(price)}' : formatCents(price),
-                    style: muted,
+                  Expanded(
+                    child: Text.rich(TextSpan(children: details), style: muted),
                   ),
-                  if (basePrice != null && base != null)
-                    Text(
-                      formatBasePrice(basePrice, base.unit),
-                      style: Theme.of(context).textTheme.bodySmall
-                          ?.merge(muted),
+                  if (shelfPrice != null)
+                    Padding(
+                      padding: const EdgeInsets.only(left: 8),
+                      child: Text(
+                        formatShelfPrice(shelfPrice, shelfUnit!),
+                        style: muted,
+                      ),
                     ),
                 ],
               ),
+        secondary: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
             IconButton(
               visualDensity: VisualDensity.compact,
               tooltip: 'Bearbeiten',

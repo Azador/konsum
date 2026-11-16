@@ -7,6 +7,10 @@ import 'package:intl/date_symbol_data_local.dart';
 import 'package:konsum/main.dart';
 import 'package:konsum/state/app_state.dart';
 import 'package:konsum/storage/store.dart';
+import 'package:konsum_core/konsum_core.dart';
+
+/// Beträge stehen mit geschütztem Leerzeichen vor dem €.
+String nbsp(String text) => text.replaceAll(' €', '\u00A0€');
 
 void main() {
   setUpAll(() => initializeDateFormatting('de'));
@@ -38,6 +42,34 @@ void main() {
     await tester.testTextInput.receiveAction(TextInputAction.done);
     await tester.pumpAndSettle();
     expect(find.text('Zucker').hitTestable(), findsOneWidget);
+    await finish(tester);
+  });
+
+  testWidgets('Preis je Packung unter dem Gesamtpreis', (tester) async {
+    final state = await start(tester);
+    final session = state.currentGroup!;
+    final listId = state.currentListId!;
+    final r = session.group.createArticle('Tomaten');
+    session.apply([
+      ...r.changes,
+      ...session.group.addToList(listId, r.id, quantity: 2, unit: Units.can),
+      ...session.group.updateEntry(listId, r.id, {
+        'packSize': 400,
+        'packUnit': Units.gram,
+        'basePrice': 322.5,
+      }),
+    ]);
+    await tester.pump();
+
+    expect(find.text(nbsp('2,58 €')), findsOneWidget);
+    expect(find.text(nbsp('1,29 €/Dose')), findsOneWidget);
+    expect(find.textContaining('€/kg'), findsNothing);
+
+    // Bei einer Dose ist der Gesamtpreis schon der Preis je Dose.
+    session.apply(session.group.updateEntry(listId, r.id, {'quantity': 1}));
+    await tester.pump();
+    expect(find.text(nbsp('1,29 €')), findsOneWidget);
+    expect(find.textContaining('€/'), findsNothing);
     await finish(tester);
   });
 
