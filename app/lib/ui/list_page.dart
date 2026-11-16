@@ -408,6 +408,27 @@ class _EntryTile extends StatelessWidget {
     final basePrice = estimated
         ? group.lastPrice(entry.articleId, shopId: shopId)?.basePriceCents
         : entry.basePriceCents;
+    // Preis je Packung (Dose, Flasche, …), wie er groß am Regal steht – nur
+    // nötig, wenn er weder der Gesamtpreis (Menge 1) noch der Grundpreis
+    // (Packung ohne Inhalt) ist.
+    final amount = entry.effectiveAmount;
+    final unit = amount.unit ?? Units.pack;
+    final perUnit = Amount(
+      quantity: 1,
+      unit: unit,
+      packSize: amount.packSize,
+      packUnit: amount.packUnit,
+    ).base;
+    final unitPrice =
+        Units.isCount(unit) &&
+            basePrice != null &&
+            base != null &&
+            perUnit != null &&
+            perUnit.unit == base.unit &&
+            perUnit.unit != unit &&
+            (amount.quantity ?? 1) != 1
+        ? (basePrice * perUnit.amount).round()
+        : null;
     final muted = entry.checked
         ? TextStyle(
             decoration: TextDecoration.lineThrough,
@@ -481,7 +502,10 @@ class _EntryTile extends StatelessWidget {
                   ),
                   if (basePrice != null && base != null)
                     Text(
-                      formatBasePrice(basePrice, base.unit),
+                      [
+                        if (unitPrice != null) formatBasePrice(unitPrice, unit),
+                        formatBasePrice(basePrice, base.unit),
+                      ].join(' · '),
                       style: Theme.of(context).textTheme.bodySmall
                           ?.merge(muted),
                     ),

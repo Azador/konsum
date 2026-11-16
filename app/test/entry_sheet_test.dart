@@ -167,7 +167,13 @@ void main() {
     expect(e.totalCents, 600);
     expect(session.group.article(hack)!.packSize, 500);
     expect(find.text('3 Packungen à 500 g'), findsOneWidget);
-    expect(find.text(formatBasePrice(400, Units.kilogram)), findsOneWidget);
+    expect(
+      find.text(
+        '${formatBasePrice(200, Units.pack)} · '
+        '${formatBasePrice(400, Units.kilogram)}',
+      ),
+      findsOneWidget,
+    );
     await finish(tester);
   });
 

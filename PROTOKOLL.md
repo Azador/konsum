@@ -357,7 +357,10 @@ Artikel), `note`, `price: null`, `basePrice: null`, `checked: false`,
 
 **Aufräumen** („abgehakte entfernen“): für jeden abgehakten Eintrag einen
 `purchase` anlegen, bei bekanntem Preis einen `price` anlegen, den Eintrag
-löschen.
+löschen. Hat der Eintrag keinen eigenen Preis, gilt der letzte Preis des
+Artikels aus demselben Laden (bzw. ohne Laden, wenn keiner gewählt ist),
+umgerechnet über den Preis je Grundeinheit, als bestätigt und wird ebenfalls
+als `price` angelegt. Preise aus anderen Läden werden nicht übernommen.
 
 ### `category` – Warengruppe
 

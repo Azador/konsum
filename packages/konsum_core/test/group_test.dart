@@ -233,6 +233,37 @@ void main() {
       expect(s.alice.listTotal(listId), (cents: 228, open: 99, unknown: 0));
     });
 
+    test('Unverändert übernommener Preis desselben Ladens gilt als '
+        'bestätigt', () {
+      final famila = s.alice.createShop('Famila').id;
+      final kaufland = s.alice.createShop('Kaufland').id;
+      s.alice.recordPrice(
+        spaghetti,
+        129,
+        quantity: 1,
+        unit: Units.pack,
+        shopId: famila,
+      );
+      s.now += 1000;
+      s.alice.addToList(listId, spaghetti, quantity: 2);
+      s.alice.setChecked(listId, spaghetti, true);
+      s.alice.clearChecked(listId, shopId: famila);
+
+      final p = s.alice.priceHistory(articleId: spaghetti).first;
+      expect(s.alice.priceHistory(articleId: spaghetti), hasLength(2));
+      expect(p.cents, 258);
+      expect(p.quantity, 2);
+      expect(p.shopId, famila);
+      expect(p.millis, greaterThan(1000));
+
+      // In einem anderen Laden ist der Preis von Famila nicht bestätigt.
+      s.alice.addToList(listId, spaghetti, quantity: 1);
+      s.alice.setChecked(listId, spaghetti, true);
+      s.alice.clearChecked(listId, shopId: kaufland);
+      expect(s.alice.priceHistory(articleId: spaghetti), hasLength(2));
+      expect(s.alice.priceHistory(shopId: kaufland), isEmpty);
+    });
+
     test('Keine Schätzung bei anderer Einheit', () {
       s.alice.recordPrice(spaghetti, 199, quantity: 1, unit: Units.kilogram);
       s.alice.addToList(listId, spaghetti, quantity: 2, unit: Units.pack);

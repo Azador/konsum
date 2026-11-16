@@ -163,8 +163,9 @@ class _EntrySheetState extends State<_EntrySheet> {
 
   /// Letzter Grundpreis als Vorgabe, solange keiner eingetragen ist und er
   /// zur aktuellen Grundeinheit passt. Er erscheint grau in den Feldern und
-  /// wird nicht gespeichert: Nur ein selbst eingetragener Preis gilt als
-  /// Preis dieses Einkaufs.
+  /// wird nicht im Eintrag gespeichert; stammt er aus demselben Laden, trägt
+  /// ihn das Aufräumen als bestätigt in die Historie ein
+  /// ([Group.clearChecked]).
   num? get _lastBasePrice {
     if (_basePrice != null) return null;
     final last = _last;
