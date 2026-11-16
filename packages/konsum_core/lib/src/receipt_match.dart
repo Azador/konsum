@@ -60,6 +60,30 @@ List<String> _words(String s) =>
         .where((w) => w.isNotEmpty)
         .toList();
 
+/// Wörter, die auf vielen Produkten stehen und nichts unterscheiden.
+const _generic = {
+  'bio',
+  'classic',
+  'klassik',
+  'frisch',
+  'fein',
+  'extra',
+  'mit',
+  'und',
+  'ohne',
+  'der',
+  'die',
+  'das',
+  'von',
+  'aus',
+  'nach',
+  'art',
+  'premium',
+  'natur',
+  'pack',
+  'stueck',
+};
+
 /// Anteil der Wörter von [name], die auf der Bonzeile als Wort oder als
 /// Wortanfang vorkommen (MIL → Milch, SCHEI → Scheiben).
 double receiptNameScore(String line, String name) {
@@ -69,7 +93,7 @@ double receiptNameScore(String line, String name) {
   ];
   final aw = [
     for (final w in _words(name))
-      if (w.length > 1) w,
+      if (w.length > 1 && !_generic.contains(w)) w,
   ];
   if (aw.isEmpty || bw.isEmpty) return 0;
   var hit = 0.0;
@@ -188,16 +212,27 @@ class ReceiptMatcher {
   }
 }
 
-/// Laden, dessen Name im Kopf des Bons steht.
+/// Laden, dessen Name im Kopf des Bons steht. Unscharf, weil Logos oft
+/// schlecht gelesen werden („famila“ → „fanila“).
 Shop? shopFromReceipt(Group group, String header) {
-  final h = normalizeReceiptText(header);
+  final words = [
+    for (final w in header.split(RegExp(r'\s+')))
+      if (normalizeReceiptText(w) case final n when n.length >= 3) n,
+  ];
+  final joined = normalizeReceiptText(header);
   Shop? best;
+  var bestSim = 0.0;
   for (final s in group.shops) {
     final n = normalizeReceiptText(s.name);
-    if (n.length >= 3 &&
-        h.contains(n) &&
-        (best == null || n.length > best.name.length)) {
+    if (n.length < 3) continue;
+    var sim = joined.contains(n) ? 1.0 : 0.0;
+    for (final w in words) {
+      final x = textSimilarity(w, n);
+      if (x > sim) sim = x;
+    }
+    if (sim >= 0.8 && sim > bestSim) {
       best = s;
+      bestSim = sim;
     }
   }
   return best;
