@@ -36,8 +36,9 @@ Server.
   (nur für den aktuellen Benutzer)
 - Abgehakte Einträge ein-/ausblenden
 - Preise je Eintrag; beim Aufräumen wandern sie mit Menge und Laden in die
-  Preishistorie. Ein unverändert stehen gelassener letzter Preis desselben
-  Ladens gilt als bestätigt und wird ebenfalls eingetragen. Schätzung offener Einträge aus dem letzten Preis, Summe der
+  Preishistorie. Ein unverändert stehen gelassener letzter Preis (bevorzugt aus
+  dem gewählten Laden, sonst aus einem anderen) gilt als bestätigt und wird
+  für den Laden des Aufräumens eingetragen. Schätzung offener Einträge aus dem letzten Preis, Summe der
   Liste. Historie löschbar (einzeln, je Artikel, je Laden, komplett)
 - Kategorien; Läden mit eigener Kategorie-Reihenfolge; Liste nach gewähltem Laden sortiert
 - Offline-first: alles funktioniert ohne Netz, Abgleich bei Verbindung

@@ -613,7 +613,9 @@ class Group {
   /// Verbucht alle abgehakten Einträge als Kauf (im Laden [shopId], falls
   /// bekannt) mit der geltenden Menge ([ListEntry.effectiveAmount]) und
   /// entfernt sie von der Liste. Eingetragene Preise wandern in die
-  /// Preishistorie, ebenso unverändert übernommene, siehe [_confirmedPrice].
+  /// Preishistorie. Ein Eintrag ohne eigenen Preis übernimmt den geschätzten
+  /// aus dem letzten Preis ([estimatedPrice]), auch aus einem anderen Laden:
+  /// Wer ihn so stehen lässt, hat ihn am Regal bestätigt.
   List<Change> clearChecked(String listId, {String? shopId}) {
     final changes = <Change>[];
     for (final e in entries(listId).where((e) => e.checked)) {
@@ -633,7 +635,7 @@ class Group {
           'packUnit': count && amount.packSize != null ? amount.packUnit : null,
         }),
       );
-      if (e.totalCents ?? _confirmedPrice(e, shopId) case final cents?) {
+      if (estimatedPrice(e, shopId: shopId) case final cents?) {
         changes.addAll(
           recordPrice(
             e.articleId,
@@ -649,16 +651,6 @@ class Group {
       changes.addAll(_delete(Types.entry, e.id));
     }
     return changes;
-  }
-
-  /// Preis eines abgehakten Eintrags ohne eigenen Preis, der aus dem
-  /// letzten Preis desselben Ladens stammt: Wer ihn so stehen lässt, hat ihn
-  /// am Regal bestätigt. Ein Preis aus einem anderen Laden sagt über diesen
-  /// nichts und wird nicht übernommen.
-  int? _confirmedPrice(ListEntry e, String? shopId) {
-    final last = lastPrice(e.articleId, shopId: shopId);
-    if (last == null || last.shopId != shopId) return null;
-    return estimatedPrice(e, shopId: shopId);
   }
 
   /// Trägt einen Preis in die Historie ein.

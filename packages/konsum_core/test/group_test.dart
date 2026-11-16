@@ -233,8 +233,7 @@ void main() {
       expect(s.alice.listTotal(listId), (cents: 228, open: 99, unknown: 0));
     });
 
-    test('Unverändert übernommener Preis desselben Ladens gilt als '
-        'bestätigt', () {
+    test('Unverändert übernommener Preis gilt als bestätigt', () {
       final famila = s.alice.createShop('Famila').id;
       final kaufland = s.alice.createShop('Kaufland').id;
       s.alice.recordPrice(
@@ -256,12 +255,15 @@ void main() {
       expect(p.shopId, famila);
       expect(p.millis, greaterThan(1000));
 
-      // In einem anderen Laden ist der Preis von Famila nicht bestätigt.
+      // Auch in einem anderen Laden: dann für diesen Laden.
+      s.now += 1000;
       s.alice.addToList(listId, spaghetti, quantity: 1);
       s.alice.setChecked(listId, spaghetti, true);
       s.alice.clearChecked(listId, shopId: kaufland);
-      expect(s.alice.priceHistory(articleId: spaghetti), hasLength(2));
-      expect(s.alice.priceHistory(shopId: kaufland), isEmpty);
+      expect(s.alice.priceHistory(articleId: spaghetti), hasLength(3));
+      final k = s.alice.priceHistory(shopId: kaufland).single;
+      expect(k.cents, 129);
+      expect(k.quantity, 1);
     });
 
     test('Keine Schätzung bei anderer Einheit', () {
