@@ -24,10 +24,20 @@ steht in [PROTOKOLL.md](PROTOKOLL.md), Dart-Projekte binden
 ```bash
 cd packages/konsum_core && dart test     # Core-Tests
 cd packages/konsum_matrix && dart test   # Matrix-Protokoll-Tests
-cd app && flutter test                   # App-Tests
+cd app && flutter test                   # App-Tests, inkl. Layout auf verbreiteten Telefonen
+cd app && tool/integration_test.sh       # Integrationstests auf dem Emulator (nur lokal)
 cd app && flutter run -d linux           # Linux-App starten
 cd app && flutter run -d chrome          # Web-App starten
 ```
+
+`test/layout_test.dart` geht die wichtigsten Seiten auf Pixel 7a, Galaxy S24,
+Galaxy A55 und iPhone 15 mit Schriftgröße 1,0 / 1,15 / 1,3 durch; Überläufe
+und umgebrochene Preise lassen den Test scheitern. `tool/integration_test.sh`
+startet dazu passend das AVD `konsum_pixel7a` (System-Image Android 36,
+Geräteprofil `pixel_7a`), schaltet es in den Flugmodus und führt
+`integration_test/` je Schriftgröße aus – ohne Netz und ohne Matrix. Es läuft
+absichtlich nur auf dem Emulator: Ein Debug-Build auf einem Telefon ersetzt
+die installierte Release-App samt Daten.
 
 Lokale Daten der Linux-App: `~/.local/share/de.azadoro.konsum/data/`
 

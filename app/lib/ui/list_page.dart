@@ -291,17 +291,22 @@ class _ListPageState extends State<ListPage> {
         if (total.cents > 0)
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-            child: Row(
-              children: [
-                Text(
-                  'Summe ca. ${formatCents(total.cents)}',
-                  style: Theme.of(context).textTheme.titleSmall,
-                ),
-                // Während des Einkaufs: wie viel noch in den Wagen kommt.
-                if (checked.isNotEmpty && open.isNotEmpty)
-                  Text('  · offen ${formatCents(total.open)}'),
-                if (total.unknown > 0) Text('  (${total.unknown} ohne Preis)'),
-              ],
+            // Darf umbrechen: Mit großer Schrift passt „offen …“ und
+            // „(… ohne Preis)“ nicht immer in eine Zeile.
+            child: Text.rich(
+              TextSpan(
+                children: [
+                  TextSpan(
+                    text: 'Summe ca. ${formatCents(total.cents)}',
+                    style: Theme.of(context).textTheme.titleSmall,
+                  ),
+                  // Während des Einkaufs: wie viel noch in den Wagen kommt.
+                  if (checked.isNotEmpty && open.isNotEmpty)
+                    TextSpan(text: '  · offen ${formatCents(total.open)}'),
+                  if (total.unknown > 0)
+                    TextSpan(text: '  (${total.unknown} ohne Preis)'),
+                ],
+              ),
             ),
           ),
       ],
@@ -481,6 +486,8 @@ class _EntryTile extends StatelessWidget {
         visualDensity: const VisualDensity(vertical: -4),
         minVerticalPadding: 5,
         minTileHeight: 0,
+        // Rechts reicht wenig Rand neben dem Stift; der Platz gehört dem Namen.
+        contentPadding: const EdgeInsetsDirectional.only(start: 16, end: 8),
         controlAffinity: ListTileControlAffinity.leading,
         value: entry.checked,
         onChanged: (v) => session.apply(
