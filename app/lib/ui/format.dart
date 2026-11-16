@@ -72,10 +72,14 @@ String formatBasePrice(num cents, String baseUnit) =>
     '${_money.format(cents / 100)}/${unitLabel(baseUnit)}';
 
 /// Kurze Einheiten für enge Stellen wie die Preise in der Liste.
-const _shortLabels = {Units.pack: 'Pkg', Units.piece: 'Stk'};
+const _shortLabels = {
+  Units.pack: 'Pkg',
+  Units.piece: 'Stk',
+  Units.bottle: 'Fl',
+};
 
 /// Preis je Einheit, wie er am Regal steht, kurz: „2,59 €/Pkg“,
-/// „1,29 €/Dose“, „2,58 €/kg“.
+/// „0,89 €/Fl“, „1,29 €/Dose“, „2,58 €/kg“.
 String formatShelfPrice(num cents, String unit) =>
     '${_money.format(cents / 100)}/${_shortLabels[unit] ?? unitLabel(unit)}';
 
