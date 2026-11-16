@@ -408,25 +408,27 @@ class _EntryTile extends StatelessWidget {
     final basePrice = estimated
         ? group.lastPrice(entry.articleId, shopId: shopId)?.basePriceCents
         : entry.basePriceCents;
-    // Preis je Packung (Dose, Flasche, …), wie er groß am Regal steht – nur
-    // nötig, wenn er weder der Gesamtpreis (Menge 1) noch der Grundpreis
-    // (Packung ohne Inhalt) ist.
+    // Preis je Packung (Dose, Flasche, …), wie er groß am Regal steht; bei
+    // loser Ware der Preis je kg bzw. l. Nur, wenn er nicht schon der
+    // Gesamtpreis ist (Menge 1).
     final amount = entry.effectiveAmount;
     final unit = amount.unit ?? Units.pack;
-    final perUnit = Amount(
-      quantity: 1,
-      unit: unit,
-      packSize: amount.packSize,
-      packUnit: amount.packUnit,
-    ).base;
-    final unitPrice =
-        Units.isCount(unit) &&
-            basePrice != null &&
+    final perUnit = Units.isCount(unit)
+        ? Amount(
+            quantity: 1,
+            unit: unit,
+            packSize: amount.packSize,
+            packUnit: amount.packUnit,
+          ).base
+        : (amount: 1, unit: base?.unit ?? unit);
+    final shelfUnit = Units.isCount(unit) ? unit : perUnit?.unit;
+    final shelfPrice =
+        basePrice != null &&
             base != null &&
             perUnit != null &&
+            shelfUnit != null &&
             perUnit.unit == base.unit &&
-            perUnit.unit != unit &&
-            (amount.quantity ?? 1) != 1
+            base.amount != perUnit.amount
         ? (basePrice * perUnit.amount).round()
         : null;
     final muted = entry.checked
@@ -484,33 +486,45 @@ class _EntryTile extends StatelessWidget {
         onChanged: (v) => session.apply(
           group.setChecked(entry.listId, entry.articleId, v ?? false),
         ),
-        title: Text(article.name, style: muted),
-        subtitle: details.isEmpty
-            ? null
-            : Text.rich(TextSpan(children: details), style: muted),
-        secondary: Row(
-          mainAxisSize: MainAxisSize.min,
+        // Der Name reicht bis an den Gesamtpreis, die Details bis an den
+        // Preis je Packung darunter.
+        title: Row(
+          crossAxisAlignment: CrossAxisAlignment.baseline,
+          textBaseline: TextBaseline.alphabetic,
           children: [
+            Expanded(child: Text(article.name, style: muted)),
             if (price != null)
-              Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.end,
+              Padding(
+                padding: const EdgeInsets.only(left: 8),
+                child: Text(
+                  estimated ? '≈ ${formatCents(price)}' : formatCents(price),
+                  style: muted,
+                ),
+              ),
+          ],
+        ),
+        subtitle: details.isEmpty && shelfPrice == null
+            ? null
+            : Row(
+                crossAxisAlignment: CrossAxisAlignment.baseline,
+                textBaseline: TextBaseline.alphabetic,
                 children: [
-                  Text(
-                    estimated ? '≈ ${formatCents(price)}' : formatCents(price),
-                    style: muted,
+                  Expanded(
+                    child: Text.rich(TextSpan(children: details), style: muted),
                   ),
-                  if (basePrice != null && base != null)
-                    Text(
-                      [
-                        if (unitPrice != null) formatBasePrice(unitPrice, unit),
-                        formatBasePrice(basePrice, base.unit),
-                      ].join(' · '),
-                      style: Theme.of(context).textTheme.bodySmall
-                          ?.merge(muted),
+                  if (shelfPrice != null)
+                    Padding(
+                      padding: const EdgeInsets.only(left: 8),
+                      child: Text(
+                        formatShelfPrice(shelfPrice, shelfUnit!),
+                        style: muted,
+                      ),
                     ),
                 ],
               ),
+        secondary: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
             IconButton(
               visualDensity: VisualDensity.compact,
               tooltip: 'Bearbeiten',

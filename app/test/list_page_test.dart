@@ -45,7 +45,7 @@ void main() {
     await finish(tester);
   });
 
-  testWidgets('Preis je Packung neben Gesamt- und Grundpreis', (tester) async {
+  testWidgets('Preis je Packung unter dem Gesamtpreis', (tester) async {
     final state = await start(tester);
     final session = state.currentGroup!;
     final listId = state.currentListId!;
@@ -62,13 +62,14 @@ void main() {
     await tester.pump();
 
     expect(find.text(nbsp('2,58 €')), findsOneWidget);
-    expect(find.text(nbsp('1,29 €/Dose · 3,23 €/kg')), findsOneWidget);
+    expect(find.text(nbsp('1,29 €/Dose')), findsOneWidget);
+    expect(find.textContaining('€/kg'), findsNothing);
 
     // Bei einer Dose ist der Gesamtpreis schon der Preis je Dose.
     session.apply(session.group.updateEntry(listId, r.id, {'quantity': 1}));
     await tester.pump();
     expect(find.text(nbsp('1,29 €')), findsOneWidget);
-    expect(find.text(nbsp('3,23 €/kg')), findsOneWidget);
+    expect(find.textContaining('€/'), findsNothing);
     await finish(tester);
   });
 
