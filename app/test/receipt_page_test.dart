@@ -1,8 +1,8 @@
 import 'dart:math' as math;
-import 'dart:typed_data';
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:konsum/main.dart';
 import 'package:konsum/services/receipt_image.dart';
@@ -14,12 +14,16 @@ import 'package:konsum_core/konsum_core.dart';
 
 /// Liefert für jeden Lauf denselben (erfundenen) Bontext.
 class _FakeOcr implements OcrEngine {
-  _FakeOcr(this.text);
+  _FakeOcr(this.text, {this.installed = true});
   final String text;
+  bool installed;
   int calls = 0;
 
   @override
   int get parallel => 2;
+
+  @override
+  Future<bool> available() async => installed;
 
   @override
   Future<String> recognize(GrayImage image, {required int psm}) async {
@@ -114,6 +118,50 @@ void main() {
       cheese.id,
     );
     expect(m.match(ReceiptLine(text: 'PFAND', cents: 25)).ignore, isTrue);
+    await tester.pump(const Duration(seconds: 5));
+  });
+
+  testWidgets('Tesseract fehlt: Anleitung und erneut prüfen', (tester) async {
+    final state = (await tester.runAsync(
+      () => AppState.load(MemoryStore(), random: math.Random(1)),
+    ))!;
+    final ocr = _FakeOcr(_bon, installed: false);
+    await tester.pumpWidget(KonsumApp(state: state));
+    tester
+        .state<NavigatorState>(find.byType(Navigator).first)
+        .push(
+          MaterialPageRoute<void>(
+            builder: (_) =>
+                ReceiptPage(session: state.currentGroup!, engine: ocr),
+          ),
+        );
+    await tester.pumpAndSettle();
+    expect(find.text('sudo apt install tesseract-ocr'), findsOneWidget);
+    expect(find.text('Foto auswählen'), findsNothing);
+    expect(find.byTooltip('Foto auswählen'), findsNothing);
+
+    String? copied;
+    tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+      SystemChannels.platform,
+      (call) async {
+        if (call.method == 'Clipboard.setData') {
+          copied = (call.arguments as Map)['text'] as String?;
+        }
+        return null;
+      },
+    );
+    await tester.tap(find.byTooltip('Befehl kopieren'));
+    await tester.pump();
+    expect(copied, 'sudo apt install tesseract-ocr');
+    expect(find.byTooltip('Kopiert'), findsOneWidget);
+    await tester.pump(const Duration(seconds: 2));
+    expect(find.byTooltip('Befehl kopieren'), findsOneWidget);
+
+    ocr.installed = true;
+    await tester.tap(find.text('Erneut prüfen'));
+    await tester.pumpAndSettle();
+    expect(find.text('Foto auswählen'), findsOneWidget);
+    expect(find.text('sudo apt install tesseract-ocr'), findsNothing);
     await tester.pump(const Duration(seconds: 5));
   });
 }

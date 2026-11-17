@@ -24,6 +24,10 @@ abstract interface class OcrEngine {
   /// Wie viele Läufe gleichzeitig sinnvoll sind.
   int get parallel;
 
+  /// Ob die Texterkennung auf diesem Gerät läuft (unter Linux: ob das
+  /// Programm `tesseract` installiert ist).
+  Future<bool> available();
+
   static OcrEngine forPlatform() =>
       Platform.isAndroid ? _AndroidOcr() : _TesseractProcess();
 }
@@ -42,6 +46,9 @@ class _AndroidOcr implements OcrEngine {
   @override
   int get parallel =>
       math.max(1, math.min(4, Platform.numberOfProcessors ~/ 2));
+
+  @override
+  Future<bool> available() async => true;
 
   @override
   Future<String> recognize(GrayImage image, {required int psm}) async {
@@ -63,6 +70,16 @@ class _AndroidOcr implements OcrEngine {
 class _TesseractProcess implements OcrEngine {
   @override
   int get parallel => math.max(1, math.min(8, Platform.numberOfProcessors - 1));
+
+  @override
+  Future<bool> available() async {
+    try {
+      final r = await Process.run('tesseract', ['--version']);
+      return r.exitCode == 0;
+    } on ProcessException {
+      return false;
+    }
+  }
 
   /// Das mitgelieferte Modell, damit überall dasselbe gilt; sonst das des
   /// Systems (Paket `tesseract-ocr-deu`).

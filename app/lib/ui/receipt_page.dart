@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:konsum_core/konsum_core.dart';
 
@@ -52,6 +53,10 @@ class _Row {
 }
 
 class _ReceiptPageState extends State<ReceiptPage> {
+  late final OcrEngine _engine = widget.engine ?? OcrEngine.forPlatform();
+
+  /// Ob die Texterkennung läuft; `null` solange noch geprüft wird.
+  bool? _ready;
   Uint8List? _photo;
   int _turns = 0;
   ({int done, int total})? _progress;
@@ -66,10 +71,16 @@ class _ReceiptPageState extends State<ReceiptPage> {
   @override
   void initState() {
     super.initState();
-    if (widget.photo != null) {
-      _photo = widget.photo;
-      WidgetsBinding.instance.addPostFrameCallback((_) => _read(null));
-    }
+    _photo = widget.photo;
+    _check();
+  }
+
+  Future<void> _check() async {
+    setState(() => _ready = null);
+    final ok = await _engine.available();
+    if (!mounted) return;
+    setState(() => _ready = ok);
+    if (ok && _photo != null && _receipt == null) await _read(null);
   }
 
   bool get _camera => !kIsWeb && Platform.isAndroid;
@@ -98,7 +109,7 @@ class _ReceiptPageState extends State<ReceiptPage> {
     try {
       final r = await readReceiptPhoto(
         photo,
-        engine: widget.engine,
+        engine: _engine,
         quarterTurns: turns,
         onProgress: (done, total) {
           if (mounted) setState(() => _progress = (done: done, total: total));
@@ -202,11 +213,15 @@ class _ReceiptPageState extends State<ReceiptPage> {
               icon: const Icon(Icons.rotate_90_degrees_cw_outlined),
               onPressed: () => _read((_turns + 1) % 4),
             ),
-          if (_progress == null) ..._sourceButtons(),
+          if (_progress == null && _ready == true) ..._sourceButtons(),
         ],
       ),
       body: _progress != null
           ? _Progress(_progress!)
+          : _ready == null
+          ? const Center(child: CircularProgressIndicator())
+          : _ready == false
+          ? _Missing(onRetry: _check)
           : receipt == null
           ? _Start(error: _error, camera: _camera, onPick: _pick)
           : ListView(
@@ -448,6 +463,113 @@ class _Start extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Unter Linux fehlt das Programm `tesseract`: Anleitung zum Installieren.
+class _Missing extends StatelessWidget {
+  const _Missing({required this.onRetry});
+
+  final VoidCallback onRetry;
+
+  static const command = 'sudo apt install tesseract-ocr';
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Center(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(24),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 480),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.extension_off_outlined,
+                size: 64,
+                color: theme.colorScheme.primary,
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                'Zum Lesen der Kassenbons braucht Konsum das Programm '
+                'Tesseract. Es ist auf diesem Rechner nicht installiert.',
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                'Unter Debian und Ubuntu im Terminal eingeben:',
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 8),
+              Container(
+                padding: const EdgeInsets.only(left: 12),
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.surfaceContainerHighest,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: SelectableText(
+                        command,
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          fontFamily: 'monospace',
+                        ),
+                      ),
+                    ),
+                    const _CopyButton(command),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Auf anderen Systemen heißt das Paket meist „tesseract“.',
+                textAlign: TextAlign.center,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+              const SizedBox(height: 24),
+              FilledButton.icon(
+                onPressed: onRetry,
+                icon: const Icon(Icons.refresh),
+                label: const Text('Erneut prüfen'),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Kopiert [text]; zeigt danach kurz einen Haken.
+class _CopyButton extends StatefulWidget {
+  const _CopyButton(this.text);
+
+  final String text;
+
+  @override
+  State<_CopyButton> createState() => _CopyButtonState();
+}
+
+class _CopyButtonState extends State<_CopyButton> {
+  bool _copied = false;
+
+  Future<void> _copy() async {
+    await Clipboard.setData(ClipboardData(text: widget.text));
+    if (!mounted) return;
+    setState(() => _copied = true);
+    await Future<void>.delayed(const Duration(seconds: 2));
+    if (mounted) setState(() => _copied = false);
+  }
+
+  @override
+  Widget build(BuildContext context) => IconButton(
+    tooltip: _copied ? 'Kopiert' : 'Befehl kopieren',
+    icon: Icon(_copied ? Icons.check : Icons.copy),
+    onPressed: _copy,
+  );
 }
 
 class _Progress extends StatelessWidget {
