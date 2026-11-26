@@ -5,6 +5,7 @@ import '../state/group_session.dart';
 import 'article_page.dart';
 import 'auto_span.dart';
 import 'format.dart';
+import 'large_text.dart';
 import 'scope.dart';
 import 'unit_field.dart';
 
@@ -333,179 +334,152 @@ class _EntrySheetState extends State<_EntrySheet> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           mainAxisSize: MainAxisSize.min,
           children: [
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    article.name,
-                    style: Theme.of(context).textTheme.titleLarge,
-                  ),
-                ),
-                TextButton.icon(
-                  icon: const Icon(Icons.inventory_2_outlined),
-                  label: const Text('Artikel'),
-                  onPressed: _openArticle,
-                ),
-              ],
+            TrailingOrBelow(
+              baseline: null,
+              main: Text(
+                article.name,
+                style: Theme.of(context).textTheme.titleLarge,
+              ),
+              trailing: TextButton.icon(
+                icon: const Icon(Icons.inventory_2_outlined),
+                label: const Text('Artikel'),
+                onPressed: _openArticle,
+              ),
             ),
             const SizedBox(height: 12),
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: _quantity,
-                    textAlign: TextAlign.center,
-                    keyboardType: const TextInputType.numberWithOptions(
-                      decimal: true,
+            FieldPair(
+              first: TextField(
+                controller: _quantity,
+                textAlign: TextAlign.center,
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
+                decoration: InputDecoration(
+                  labelText: 'Menge',
+                  // Leer: Es gilt die Menge der Automatik.
+                  hintText: _auto?.unit == _unit
+                      ? formatQuantity(_auto!.quantity, null)
+                      : null,
+                  floatingLabelBehavior: _auto?.unit == _unit
+                      ? FloatingLabelBehavior.always
+                      : null,
+                  helper: switch (_auto) {
+                    final a? => Text.rich(
+                      autoSpan(context, 'automatisch ${formatAmountOf(a)}'),
                     ),
-                    decoration: InputDecoration(
-                      labelText: 'Menge',
-                      // Leer: Es gilt die Menge der Automatik.
-                      hintText: _auto?.unit == _unit
-                          ? formatQuantity(_auto!.quantity, null)
-                          : null,
-                      floatingLabelBehavior: _auto?.unit == _unit
-                          ? FloatingLabelBehavior.always
-                          : null,
-                      helper: switch (_auto) {
-                        final a? => Text.rich(
-                          autoSpan(context, 'automatisch ${formatAmountOf(a)}'),
-                        ),
-                        null => null,
-                      },
-                      border: const OutlineInputBorder(),
-                      prefixIcon: IconButton(
-                        tooltip: 'Weniger',
-                        icon: const Icon(Icons.remove),
-                        onPressed: _current - _step > 0
-                            ? () => _stepBy(-1)
-                            : null,
-                      ),
-                      suffixIcon: IconButton(
-                        tooltip: 'Mehr',
-                        icon: const Icon(Icons.add),
-                        onPressed: () => _stepBy(1),
-                      ),
-                    ),
-                    onChanged: (_) => _amountChanged(),
+                    null => null,
+                  },
+                  border: const OutlineInputBorder(),
+                  prefixIcon: IconButton(
+                    tooltip: 'Weniger',
+                    icon: const Icon(Icons.remove),
+                    onPressed: _current - _step > 0 ? () => _stepBy(-1) : null,
+                  ),
+                  suffixIcon: IconButton(
+                    tooltip: 'Mehr',
+                    icon: const Icon(Icons.add),
+                    onPressed: () => _stepBy(1),
                   ),
                 ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: UnitField(
-                    value: _unit,
-                    allowNone: false,
-                    onChanged: (u) {
-                      _unit = u ?? Units.pack;
-                      _amountChanged();
-                    },
-                  ),
-                ),
-              ],
+                onChanged: (_) => _amountChanged(),
+              ),
+              second: UnitField(
+                value: _unit,
+                allowNone: false,
+                onChanged: (u) {
+                  _unit = u ?? Units.pack;
+                  _amountChanged();
+                },
+              ),
             ),
             const SizedBox(height: 12),
             if (Units.isCount(_unit)) ...[
               const SizedBox(height: 12),
-              Row(
-                children: [
-                  Expanded(
-                    child: TextField(
-                      controller: _packSize,
-                      keyboardType: const TextInputType.numberWithOptions(
-                        decimal: true,
-                      ),
-                      decoration: InputDecoration(
-                        labelText: 'Inhalt je ${unitLabel(_unit)}',
-                        hintText: 'optional',
-                        border: const OutlineInputBorder(),
-                      ),
-                      onChanged: (_) => _amountChanged(),
-                    ),
+              FieldPair(
+                first: TextField(
+                  controller: _packSize,
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
                   ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: UnitField(
-                      value: _packUnit,
-                      units: Units.packUnits,
-                      allowNone: false,
-                      onChanged: (u) {
-                        _packUnit = u ?? Units.gram;
-                        _amountChanged();
-                      },
-                    ),
+                  decoration: InputDecoration(
+                    labelText: 'Inhalt je ${unitLabel(_unit)}',
+                    hintText: 'optional',
+                    border: const OutlineInputBorder(),
                   ),
-                ],
+                  onChanged: (_) => _amountChanged(),
+                ),
+                second: UnitField(
+                  value: _packUnit,
+                  units: Units.packUnits,
+                  allowNone: false,
+                  onChanged: (u) {
+                    _packUnit = u ?? Units.gram;
+                    _amountChanged();
+                  },
+                ),
               ),
             ],
             const SizedBox(height: 12),
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: _shelf,
+            Builder(
+              builder: (context) {
+                final shelf = TextField(
+                  controller: _shelf,
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
+                  decoration: InputDecoration(
+                    labelText: '€/${unitLabel(_twoFields ? _unit : _baseUnit)}',
+                    hintText: switch (lastBase) {
+                      final b? => formatCentsInput((b * _shelfFactor).round()),
+                      null => null,
+                    },
+                    // Sonst steht die Beschriftung im leeren Feld und
+                    // verdeckt die Vorgabe, bis man hineintippt.
+                    floatingLabelBehavior: lastBase == null
+                        ? null
+                        : FloatingLabelBehavior.always,
+                    // Immer da, damit nichts springt, wenn der Preis
+                    // erscheint.
+                    helperText: [
+                      switch (_shownQuantity) {
+                        final q? => formatQuantity(q, _unit),
+                        null => 'Gesamt',
+                      },
+                      switch ((_total, lastBase, _base)) {
+                        (final t?, _, _) => formatCents(t),
+                        (null, final b?, final base?) =>
+                          '≈ ${formatCents((b * base.amount).round())}',
+                        _ => '–',
+                      },
+                    ].join(': '),
+                    border: const OutlineInputBorder(),
+                  ),
+                  onChanged: _shelfChanged,
+                );
+                if (!_twoFields) return shelf;
+                return FieldPair(
+                  first: shelf,
+                  second: TextField(
+                    controller: _basePriceText,
                     keyboardType: const TextInputType.numberWithOptions(
                       decimal: true,
                     ),
                     decoration: InputDecoration(
-                      labelText:
-                          '€/${unitLabel(_twoFields ? _unit : _baseUnit)}',
+                      labelText: '€/${unitLabel(_baseUnit)}',
                       hintText: switch (lastBase) {
-                        final b? => formatCentsInput(
-                          (b * _shelfFactor).round(),
-                        ),
+                        final b? => formatCentsInput(b),
                         null => null,
                       },
-                      // Sonst steht die Beschriftung im leeren Feld und
-                      // verdeckt die Vorgabe, bis man hineintippt.
                       floatingLabelBehavior: lastBase == null
                           ? null
                           : FloatingLabelBehavior.always,
-                      // Immer da, damit nichts springt, wenn der Preis
-                      // erscheint.
-                      helperText: [
-                        switch (_shownQuantity) {
-                          final q? => formatQuantity(q, _unit),
-                          null => 'Gesamt',
-                        },
-                        switch ((_total, lastBase, _base)) {
-                          (final t?, _, _) => formatCents(t),
-                          (null, final b?, final base?) =>
-                            '≈ ${formatCents((b * base.amount).round())}',
-                          _ => '–',
-                        },
-                      ].join(': '),
+                      helperText: 'Grundpreis',
                       border: const OutlineInputBorder(),
                     ),
-                    onChanged: _shelfChanged,
+                    onChanged: _basePriceChanged,
                   ),
-                ),
-                if (_twoFields) ...[
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: TextField(
-                      controller: _basePriceText,
-                      keyboardType: const TextInputType.numberWithOptions(
-                        decimal: true,
-                      ),
-                      decoration: InputDecoration(
-                        labelText: '€/${unitLabel(_baseUnit)}',
-                        hintText: switch (lastBase) {
-                          final b? => formatCentsInput(b),
-                          null => null,
-                        },
-                        floatingLabelBehavior: lastBase == null
-                            ? null
-                            : FloatingLabelBehavior.always,
-                        helperText: 'Grundpreis',
-                        border: const OutlineInputBorder(),
-                      ),
-                      onChanged: _basePriceChanged,
-                    ),
-                  ),
-                ],
-              ],
+                );
+              },
             ),
             if (last != null)
               Padding(
@@ -543,7 +517,11 @@ class _EntrySheetState extends State<_EntrySheet> {
               ),
             ),
             const SizedBox(height: 16),
-            Row(
+            // Mit großer Schrift passen beide Knöpfe nicht nebeneinander.
+            OverflowBar(
+              alignment: MainAxisAlignment.spaceBetween,
+              overflowAlignment: OverflowBarAlignment.end,
+              overflowSpacing: 8,
               children: [
                 TextButton.icon(
                   icon: const Icon(Icons.remove_shopping_cart_outlined),
@@ -558,7 +536,6 @@ class _EntrySheetState extends State<_EntrySheet> {
                     Navigator.pop(context);
                   },
                 ),
-                const Spacer(),
                 FilledButton(onPressed: _save, child: const Text('Speichern')),
               ],
             ),

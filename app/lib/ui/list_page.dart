@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:konsum_core/konsum_core.dart';
 
@@ -8,6 +10,7 @@ import 'dialogs.dart';
 import 'drawer.dart';
 import 'entry_sheet.dart';
 import 'format.dart';
+import 'large_text.dart';
 import 'scan.dart';
 import 'scope.dart';
 import 'status_line.dart';
@@ -26,6 +29,9 @@ class ListPage extends StatefulWidget {
 class _ListPageState extends State<ListPage> {
   final _input = TextEditingController();
   final _focus = FocusNode();
+
+  /// Die Vorschläge liegen in einer eigenen Ebene über dem Eingabefeld.
+  final _suggestionsPortal = OverlayPortalController()..show();
 
   /// Schlüssel der Einträge, um zu einem neuen hinzuscrollen.
   final _entryKeys = <String, GlobalKey>{};
@@ -137,22 +143,25 @@ class _ListPageState extends State<ListPage> {
     final open = all.where((e) => !e.checked).toList();
     final checked = all.where((e) => e.checked).toList();
     final total = _group.listTotal(widget.listId, shopId: shopId);
+    // Mit großer Schrift bliebe sonst für den Namen der Liste kein Platz.
+    final cramped = isCramped(context);
 
     return Scaffold(
       drawer: const GroupDrawer(),
       appBar: AppBar(
         title: Text(list?.name ?? ''),
         actions: [
-          _ShopMenu(session: _session, shopId: shopId),
-          IconButton(
-            tooltip: app.showChecked
-                ? 'Abgehakte ausblenden'
-                : 'Abgehakte einblenden',
-            icon: Icon(
-              app.showChecked ? Icons.visibility : Icons.visibility_off,
+          _ShopMenu(session: _session, shopId: shopId, showName: !cramped),
+          if (!cramped)
+            IconButton(
+              tooltip: app.showChecked
+                  ? 'Abgehakte ausblenden'
+                  : 'Abgehakte einblenden',
+              icon: Icon(
+                app.showChecked ? Icons.visibility : Icons.visibility_off,
+              ),
+              onPressed: app.toggleShowChecked,
             ),
-            onPressed: app.toggleShowChecked,
-          ),
           IconButton(
             tooltip: 'Abgehakte entfernen',
             icon: Badge(
@@ -168,7 +177,9 @@ class _ListPageState extends State<ListPage> {
           ),
           PopupMenuButton<String>(
             onSelected: (v) async {
-              if (v == 'rename') {
+              if (v == 'checked') {
+                app.toggleShowChecked();
+              } else if (v == 'rename') {
                 final name = await promptText(
                   context,
                   title: 'Liste umbenennen',
@@ -188,61 +199,57 @@ class _ListPageState extends State<ListPage> {
                 app.deleteList(_session, widget.listId);
               }
             },
-            itemBuilder: (_) => const [
-              PopupMenuItem(value: 'rename', child: Text('Umbenennen')),
-              PopupMenuItem(value: 'delete', child: Text('Liste löschen')),
+            itemBuilder: (_) => [
+              if (cramped)
+                CheckedPopupMenuItem(
+                  value: 'checked',
+                  checked: app.showChecked,
+                  child: const Text('Abgehakte zeigen'),
+                ),
+              const PopupMenuItem(value: 'rename', child: Text('Umbenennen')),
+              const PopupMenuItem(
+                value: 'delete',
+                child: Text('Liste löschen'),
+              ),
             ],
           ),
         ],
       ),
       body: Column(
         children: [
-          Expanded(
-            child: Stack(
-              children: [
-                Positioned.fill(
-                  child: _listAndTotal(all, open, checked, total, shopId),
+          Expanded(child: _listAndTotal(all, open, checked, total, shopId)),
+          OverlayPortal.overlayChildLayoutBuilder(
+            controller: _suggestionsPortal,
+            overlayChildBuilder: (context, info) =>
+                _suggestionsAbove(context, info),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(12, 4, 12, 8),
+              child: TextField(
+                controller: _input,
+                focusNode: _focus,
+                textInputAction: TextInputAction.done,
+                decoration: InputDecoration(
+                  hintText: 'Hinzufügen, z. B. „2 kg Mehl“',
+                  prefixIcon: const Icon(Icons.add_shopping_cart),
+                  border: const OutlineInputBorder(),
+                  suffixIcon: _input.text.isEmpty
+                      ? IconButton(
+                          tooltip: 'Barcode scannen',
+                          icon: const Icon(Icons.qr_code_scanner),
+                          onPressed: () async {
+                            final code = await scanBarcode(context);
+                            if (code != null && context.mounted) {
+                              await _scan(code);
+                            }
+                          },
+                        )
+                      : IconButton(
+                          icon: const Icon(Icons.send),
+                          onPressed: () => _add(_input.text),
+                        ),
                 ),
-                if (_focus.hasFocus)
-                  Positioned(
-                    left: 0,
-                    right: 0,
-                    bottom: 0,
-                    // Auf dem Desktop nimmt ein Mausklick außerhalb dem Feld
-                    // den Fokus – und damit die Vorschläge, bevor der Klick
-                    // ankommt. So gelten sie als Teil des Felds.
-                    child: TextFieldTapRegion(child: _suggestions()),
-                  ),
-              ],
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(12, 4, 12, 8),
-            child: TextField(
-              controller: _input,
-              focusNode: _focus,
-              textInputAction: TextInputAction.done,
-              decoration: InputDecoration(
-                hintText: 'Hinzufügen, z. B. „2 kg Mehl“',
-                prefixIcon: const Icon(Icons.add_shopping_cart),
-                border: const OutlineInputBorder(),
-                suffixIcon: _input.text.isEmpty
-                    ? IconButton(
-                        tooltip: 'Barcode scannen',
-                        icon: const Icon(Icons.qr_code_scanner),
-                        onPressed: () async {
-                          final code = await scanBarcode(context);
-                          if (code != null && context.mounted) {
-                            await _scan(code);
-                          }
-                        },
-                      )
-                    : IconButton(
-                        icon: const Icon(Icons.send),
-                        onPressed: () => _add(_input.text),
-                      ),
+                onSubmitted: _add,
               ),
-              onSubmitted: _add,
             ),
           ),
           const StatusLine(),
@@ -318,8 +325,43 @@ class _ListPageState extends State<ListPage> {
     child: _EntryTile(_session, e, shopId),
   );
 
+  /// Legt die Vorschläge direkt über das Eingabefeld ([info] beschreibt
+  /// dessen Lage). Sie dürfen bis unter die Statusleiste reichen: Mit großer
+  /// Schrift und offener Tastatur bleibt für die Liste oft kaum Platz, und
+  /// die Vorschläge sollen trotzdem zu sehen sein.
+  Widget _suggestionsAbove(BuildContext context, OverlayChildLayoutInfo info) {
+    if (!_focus.hasFocus) return const SizedBox.shrink();
+    final origin = MatrixUtils.transformPoint(
+      info.childPaintTransform,
+      Offset.zero,
+    );
+    final top = MediaQueryData.fromView(View.of(context)).padding.top;
+    final available = origin.dy - top;
+    if (available <= 0) return const SizedBox.shrink();
+    // Etwa drei Reihen Chips, mit der Schrift größer.
+    final row = MediaQuery.textScalerOf(context).scale(24) + 20;
+    return Stack(
+      children: [
+        Positioned(
+          left: origin.dx,
+          width: info.childSize.width,
+          bottom: info.overlaySize.height - origin.dy,
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              maxHeight: math.min(available, 3 * row),
+            ),
+            // Auf dem Desktop nimmt ein Mausklick außerhalb dem Feld den
+            // Fokus – und damit die Vorschläge, bevor der Klick ankommt. So
+            // gelten sie als Teil des Felds.
+            child: TextFieldTapRegion(child: _suggestions()),
+          ),
+        ),
+      ],
+    );
+  }
+
   /// Vorschläge, halbdurchsichtig über dem unteren Rand der Liste; nur so
-  /// hoch wie nötig, höchstens drei Zeilen.
+  /// hoch wie nötig.
   Widget _suggestions() {
     final query = parseQuickAdd(_input.text);
     final items = _group
@@ -328,38 +370,47 @@ class _ListPageState extends State<ListPage> {
         .toList();
     if (items.isEmpty) return const SizedBox.shrink();
     final colors = Theme.of(context).colorScheme;
-    return Container(
-      color: colors.surface.withValues(alpha: 0.25),
-      constraints: const BoxConstraints(maxHeight: 132),
-      padding: const EdgeInsets.fromLTRB(12, 4, 12, 4),
-      child: SingleChildScrollView(
-        // Chips liegen auf einem Material in der deckenden canvasColor; ohne
-        // diese Überschreibung wäre ihr Hintergrund nicht durchsichtig.
-        child: Theme(
-          data: Theme.of(context).copyWith(canvasColor: Colors.transparent),
-          child: Wrap(
-            spacing: 6,
-            runSpacing: 0,
-            children: [
-              for (final a in items)
-                ActionChip(
-                  label: Text(a.name),
-                  // Fast deckend, damit der Name über der Liste lesbar bleibt.
-                  backgroundColor: colors.secondaryContainer.withValues(
-                    alpha: 0.8,
+    // Material für die Chips und für Texte ohne gelbe Unterstreichung.
+    return Material(
+      type: MaterialType.transparency,
+      child: Container(
+        color: colors.surface.withValues(alpha: 0.25),
+        padding: const EdgeInsets.fromLTRB(12, 4, 12, 4),
+        child: SingleChildScrollView(
+          // Chips liegen auf einem Material in der deckenden canvasColor; ohne
+          // diese Überschreibung wäre ihr Hintergrund nicht durchsichtig.
+          child: Theme(
+            data: Theme.of(context).copyWith(canvasColor: Colors.transparent),
+            child: Wrap(
+              spacing: 6,
+              runSpacing: 0,
+              children: [
+                for (final a in items)
+                  ActionChip(
+                    // Lange Namen unterscheiden sich oft erst am Ende; zwei
+                    // Zeilen zeigen meist genug davon.
+                    label: Text(
+                      a.name,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    // Fast deckend, damit der Name über der Liste lesbar bleibt.
+                    backgroundColor: colors.secondaryContainer.withValues(
+                      alpha: 0.8,
+                    ),
+                    side: BorderSide.none,
+                    // Kein Schatten: der schiene durch den halbtransparenten
+                    // Hintergrund und dunkelte ihn nur ab.
+                    elevation: 0,
+                    pressElevation: 0,
+                    onPressed: () => _addArticle(
+                      a.id,
+                      quantity: query.quantity,
+                      unit: query.unit,
+                    ),
                   ),
-                  side: BorderSide.none,
-                  // Kein Schatten: der schiene durch den halbtransparenten
-                  // Hintergrund und dunkelte ihn nur ab.
-                  elevation: 0,
-                  pressElevation: 0,
-                  onPressed: () => _addArticle(
-                    a.id,
-                    quantity: query.quantity,
-                    unit: query.unit,
-                  ),
-                ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
@@ -494,41 +545,25 @@ class _EntryTile extends StatelessWidget {
           group.setChecked(entry.listId, entry.articleId, v ?? false),
         ),
         // Der Name reicht bis an den Gesamtpreis, die Details bis an den
-        // Preis je Packung darunter.
-        title: Row(
-          crossAxisAlignment: CrossAxisAlignment.baseline,
-          textBaseline: TextBaseline.alphabetic,
-          children: [
-            Expanded(child: Text(article.name, style: muted)),
-            if (price != null)
-              Padding(
-                padding: const EdgeInsets.only(left: 8),
-                child: Text(
+        // Preis je Packung darunter. Mit großer Schrift rücken die Preise
+        // unter den Text, bevor ein Wort zerrissen würde.
+        title: price == null
+            ? Text(article.name, style: muted)
+            : TrailingOrBelow(
+                main: Text(article.name, style: muted),
+                trailing: Text(
                   estimated ? '≈ ${formatCents(price)}' : formatCents(price),
                   style: muted,
                 ),
               ),
-          ],
-        ),
-        subtitle: details.isEmpty && shelfPrice == null
-            ? null
-            : Row(
-                crossAxisAlignment: CrossAxisAlignment.baseline,
-                textBaseline: TextBaseline.alphabetic,
-                children: [
-                  Expanded(
-                    child: Text.rich(TextSpan(children: details), style: muted),
-                  ),
-                  if (shelfPrice != null)
-                    Padding(
-                      padding: const EdgeInsets.only(left: 8),
-                      child: Text(
-                        formatShelfPrice(shelfPrice, shelfUnit!),
-                        style: muted,
-                      ),
-                    ),
-                ],
-              ),
+        subtitle: switch ((details.isEmpty, shelfPrice)) {
+          (true, null) => null,
+          (_, null) => Text.rich(TextSpan(children: details), style: muted),
+          (_, final shelf?) => TrailingOrBelow(
+            main: Text.rich(TextSpan(children: details), style: muted),
+            trailing: Text(formatShelfPrice(shelf, shelfUnit!), style: muted),
+          ),
+        },
         secondary: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -546,10 +581,17 @@ class _EntryTile extends StatelessWidget {
 }
 
 class _ShopMenu extends StatelessWidget {
-  const _ShopMenu({required this.session, required this.shopId});
+  const _ShopMenu({
+    required this.session,
+    required this.shopId,
+    this.showName = true,
+  });
 
   final GroupSession session;
   final String? shopId;
+
+  /// Name des gewählten Ladens neben dem Symbol; sonst nur im Hinweis.
+  final bool showName;
 
   @override
   Widget build(BuildContext context) {
@@ -557,21 +599,29 @@ class _ShopMenu extends StatelessWidget {
     final shops = session.group.shops;
     final current = shopId == null ? null : session.group.shop(shopId!);
     return PopupMenuButton<String>(
-      tooltip: 'Laden wählen',
+      tooltip: current == null || showName
+          ? 'Laden wählen'
+          : 'Laden wählen (${current.name})',
       onSelected: (id) => app.selectShop(session, id.isEmpty ? null : id),
       itemBuilder: (_) => [
-        const PopupMenuItem(
+        CheckedPopupMenuItem(
           value: '',
-          child: Text('Kein Laden (alphabetisch)'),
+          checked: shopId == null,
+          child: const Text('Kein Laden (alphabetisch)'),
         ),
-        for (final s in shops) PopupMenuItem(value: s.id, child: Text(s.name)),
+        for (final s in shops)
+          CheckedPopupMenuItem(
+            value: s.id,
+            checked: s.id == shopId,
+            child: Text(s.name),
+          ),
       ],
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 8),
         child: Row(
           children: [
             const Icon(Icons.storefront_outlined),
-            if (current != null) ...[
+            if (current != null && showName) ...[
               const SizedBox(width: 4),
               ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 90),

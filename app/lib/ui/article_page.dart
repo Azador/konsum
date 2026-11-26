@@ -85,6 +85,7 @@ class ArticlePage extends StatelessWidget {
         children: [
           DropdownButtonFormField<String?>(
             initialValue: article.categoryId,
+            isExpanded: true,
             decoration: const InputDecoration(
               labelText: 'Kategorie',
               border: OutlineInputBorder(),
@@ -92,7 +93,10 @@ class ArticlePage extends StatelessWidget {
             items: [
               const DropdownMenuItem(child: Text('–')),
               for (final c in group.categories)
-                DropdownMenuItem(value: c.id, child: Text(c.name)),
+                DropdownMenuItem(
+                  value: c.id,
+                  child: Text(c.name, overflow: TextOverflow.ellipsis),
+                ),
             ],
             onChanged: (v) => session.apply(
               group.updateArticle(articleId, {'categoryId': v}),
