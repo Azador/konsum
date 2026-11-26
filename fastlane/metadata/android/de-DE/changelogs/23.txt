@@ -1,0 +1,4 @@
+• Große Schrift: Vorschläge beim Hinzufügen sind auch mit offener Tastatur zu sehen, lange Namen zweizeilig.
+• Große Schrift: Preise rücken unter den Namen statt Wörter zu zerreißen; Felder stehen untereinander; der Listenname bleibt sichtbar.
+• Liste: Preis je Packung (z. B. 1,29 €/Dose) unter dem Gesamtpreis.
+• Ein stehen gelassener letzter Preis gilt beim Aufräumen als bestätigt und kommt in den Preisverlauf.
