@@ -5,6 +5,7 @@ import '../state/group_session.dart';
 import 'article_page.dart';
 import 'dialogs.dart';
 import 'format.dart';
+import 'large_text.dart';
 import 'purchase_dialog.dart';
 import 'retention_dialog.dart';
 import 'scope.dart';
@@ -57,26 +58,32 @@ class PurchasesPage extends StatelessWidget {
         PurchaseTile(session: session, purchase: p, showArticle: true),
       );
     }
+    Future<void> deleteAll() async {
+      if (await confirm(
+        context,
+        title: 'Gesamte Kaufhistorie löschen?',
+        message:
+            'Alle Käufe der Gruppe werden für alle Mitglieder '
+            'gelöscht. Vorschläge und wiederkehrende Artikel '
+            'fangen dann von vorn an.',
+      )) {
+        session.apply(group.deletePurchases());
+      }
+    }
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Käufe'),
         actions: [
-          if (purchases.isNotEmpty)
-            TextButton(
-              onPressed: () async {
-                if (await confirm(
-                  context,
-                  title: 'Gesamte Kaufhistorie löschen?',
-                  message:
-                      'Alle Käufe der Gruppe werden für alle Mitglieder '
-                      'gelöscht. Vorschläge und wiederkehrende Artikel '
-                      'fangen dann von vorn an.',
-                )) {
-                  session.apply(group.deletePurchases());
-                }
-              },
-              child: const Text('Alle löschen'),
-            ),
+          // Mit großer Schrift bliebe neben dem Knopf kein Platz für den Titel.
+          if (purchases.isNotEmpty && isCramped(context))
+            IconButton(
+              tooltip: 'Alle löschen',
+              icon: const Icon(Icons.delete_sweep_outlined),
+              onPressed: deleteAll,
+            )
+          else if (purchases.isNotEmpty)
+            TextButton(onPressed: deleteAll, child: const Text('Alle löschen')),
         ],
       ),
       body: ListView(children: children),
@@ -133,26 +140,44 @@ class PurchaseTile extends StatelessWidget {
               ),
             )
           : null,
-      trailing: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          IconButton(
-            tooltip: 'Menge korrigieren',
-            icon: const Icon(Icons.edit_outlined),
-            onPressed: () async {
-              final amount = await showPurchaseAmountDialog(context, p.amount);
-              if (amount != null) {
-                session.apply(group.updatePurchase(p.id, amount));
-              }
-            },
-          ),
-          IconButton(
-            tooltip: 'Kauf löschen',
-            icon: const Icon(Icons.close),
-            onPressed: () => session.apply(group.deletePurchase(p.id)),
-          ),
-        ],
-      ),
+      trailing: isCramped(context)
+          // Zwei Knöpfe ließen dem Namen mit großer Schrift kaum Platz.
+          ? PopupMenuButton<void Function()>(
+              tooltip: 'Kauf bearbeiten',
+              onSelected: (action) => action(),
+              itemBuilder: (_) => [
+                PopupMenuItem(
+                  value: () => _correct(context),
+                  child: const Text('Menge korrigieren'),
+                ),
+                PopupMenuItem(
+                  value: () => session.apply(group.deletePurchase(p.id)),
+                  child: const Text('Kauf löschen'),
+                ),
+              ],
+            )
+          : Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                IconButton(
+                  tooltip: 'Menge korrigieren',
+                  icon: const Icon(Icons.edit_outlined),
+                  onPressed: () => _correct(context),
+                ),
+                IconButton(
+                  tooltip: 'Kauf löschen',
+                  icon: const Icon(Icons.close),
+                  onPressed: () => session.apply(group.deletePurchase(p.id)),
+                ),
+              ],
+            ),
     );
+  }
+
+  Future<void> _correct(BuildContext context) async {
+    final amount = await showPurchaseAmountDialog(context, purchase.amount);
+    if (amount != null) {
+      session.apply(session.group.updatePurchase(purchase.id, amount));
+    }
   }
 }

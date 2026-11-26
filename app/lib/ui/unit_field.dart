@@ -25,16 +25,21 @@ class UnitField extends StatelessWidget {
   @override
   Widget build(BuildContext context) => DropdownButtonFormField<String?>(
     initialValue: value,
+    // Mit großer Schrift sonst zu breit für das halbe Blatt.
+    isExpanded: true,
     decoration: InputDecoration(
       labelText: label,
       helperText: helperText,
-      helperMaxLines: 3,
+      helperMaxLines: 8,
       border: const OutlineInputBorder(),
     ),
     items: [
       if (allowNone) const DropdownMenuItem(child: Text('–')),
       for (final u in units)
-        DropdownMenuItem(value: u, child: Text(unitLabel(u))),
+        DropdownMenuItem(
+          value: u,
+          child: Text(unitLabel(u), overflow: TextOverflow.ellipsis),
+        ),
     ],
     onChanged: onChanged,
   );

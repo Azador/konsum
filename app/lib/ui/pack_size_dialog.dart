@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:konsum_core/konsum_core.dart';
 
 import 'format.dart';
+import 'large_text.dart';
 import 'unit_field.dart';
 
 /// Ergebnis von [showPackSizeDialog]; `size == null` heißt „keine“.
@@ -55,31 +56,24 @@ class _PackSizeDialogState extends State<_PackSizeDialog> {
   @override
   Widget build(BuildContext context) => AlertDialog(
     title: Text(widget.title),
-    content: Row(
-      children: [
-        Expanded(
-          child: TextField(
-            controller: _size,
-            autofocus: true,
-            keyboardType: const TextInputType.numberWithOptions(decimal: true),
-            decoration: const InputDecoration(
-              labelText: 'Inhalt',
-              hintText: 'z. B. 500',
-              border: OutlineInputBorder(),
-            ),
-            onSubmitted: (_) => _save(),
-          ),
+    content: FieldPair(
+      first: TextField(
+        controller: _size,
+        autofocus: true,
+        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+        decoration: const InputDecoration(
+          labelText: 'Inhalt',
+          hintText: 'z. B. 500',
+          border: OutlineInputBorder(),
         ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: UnitField(
-            value: _unit,
-            units: Units.packUnits,
-            allowNone: false,
-            onChanged: (u) => setState(() => _unit = u ?? Units.gram),
-          ),
-        ),
-      ],
+        onSubmitted: (_) => _save(),
+      ),
+      second: UnitField(
+        value: _unit,
+        units: Units.packUnits,
+        allowNone: false,
+        onChanged: (u) => setState(() => _unit = u ?? Units.gram),
+      ),
     ),
     actions: [
       TextButton(
