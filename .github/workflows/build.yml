@@ -70,11 +70,23 @@ jobs:
         with:
           distribution: temurin
           java-version: 17
+          # Gradle-Abhängigkeiten und Wrapper nicht jedes Mal laden.
+          cache: gradle
       - uses: subosito/flutter-action@v2
         with:
           flutter-version: ${{ env.FLUTTER_VERSION }}
           channel: stable
           cache: true
+      # vodozemac (Rust) wird aus dem Quelltext gebaut; die übersetzten
+      # Abhängigkeiten aufheben. PRs lesen den Cache von main mit.
+      - uses: actions/cache@v5
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            app/build/flutter_vodozemac/build
+          key: cargokit-android-${{ hashFiles('app/pubspec.lock') }}
+          restore-keys: cargokit-android-
       - name: Signierschlüssel
         env:
           KEYSTORE: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
@@ -94,9 +106,17 @@ jobs:
           echo "SIGNED=1" >> "$GITHUB_ENV"
       - name: APK bauen
         working-directory: app
+        env:
+          # PRs nur für arm64 (alle aktuellen Telefone): Rust und C++ werden
+          # sonst für drei Architekturen übersetzt. main baut alle.
+          PR: ${{ github.event_name == 'pull_request' }}
         run: |
-          flutter build apk --release
+          platforms=android-arm,android-arm64,android-x64
+          [ "$PR" = true ] && platforms=android-arm64
+          flutter build apk --release --target-platform "$platforms"
           version="$(sed -n 's/^version: *\([^+]*\).*/\1/p' pubspec.yaml)"
+          # Name zeigt, dass die APK nur auf 64-Bit-ARM läuft.
+          [ "$PR" = true ] && version="$version-arm64"
           mkdir -p ../dist
           if [ -n "${SIGNED:-}" ]; then
             cp build/app/outputs/flutter-apk/app-release.apk "../dist/konsum-$version.apk"

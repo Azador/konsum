@@ -4,6 +4,7 @@ import 'package:konsum_core/konsum_core.dart';
 
 import '../state/group_session.dart';
 import 'format.dart';
+import 'large_text.dart';
 import 'unit_field.dart';
 
 /// Trägt einen Preis direkt in die Historie eines Artikels ein.
@@ -113,65 +114,50 @@ class _PriceDialogState extends State<_PriceDialog> {
               onChanged: (_) => setState(() {}),
             ),
             const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: _quantity,
-                    keyboardType: const TextInputType.numberWithOptions(
-                      decimal: true,
-                    ),
-                    decoration: const InputDecoration(
-                      labelText: 'für Menge',
-                      border: OutlineInputBorder(),
-                    ),
-                    onChanged: (_) => setState(() {}),
-                  ),
+            FieldPair(
+              first: TextField(
+                controller: _quantity,
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
                 ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: UnitField(
-                    value: _unit,
-                    onChanged: (u) => setState(() => _unit = u),
-                  ),
+                decoration: const InputDecoration(
+                  labelText: 'für Menge',
+                  border: OutlineInputBorder(),
                 ),
-              ],
+                onChanged: (_) => setState(() {}),
+              ),
+              second: UnitField(
+                value: _unit,
+                onChanged: (u) => setState(() => _unit = u),
+              ),
             ),
             if (Units.isCount(_unit)) ...[
               const SizedBox(height: 12),
-              Row(
-                children: [
-                  Expanded(
-                    child: TextField(
-                      controller: _packSize,
-                      keyboardType: const TextInputType.numberWithOptions(
-                        decimal: true,
-                      ),
-                      decoration: InputDecoration(
-                        labelText:
-                            'Inhalt je ${unitLabel(_unit ?? Units.pack)}',
-                        hintText: 'optional',
-                        border: const OutlineInputBorder(),
-                      ),
-                      onChanged: (_) => setState(() {}),
-                    ),
+              FieldPair(
+                first: TextField(
+                  controller: _packSize,
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
                   ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: UnitField(
-                      value: _packUnit,
-                      units: Units.packUnits,
-                      allowNone: false,
-                      onChanged: (u) =>
-                          setState(() => _packUnit = u ?? Units.gram),
-                    ),
+                  decoration: InputDecoration(
+                    labelText: 'Inhalt je ${unitLabel(_unit ?? Units.pack)}',
+                    hintText: 'optional',
+                    border: const OutlineInputBorder(),
                   ),
-                ],
+                  onChanged: (_) => setState(() {}),
+                ),
+                second: UnitField(
+                  value: _packUnit,
+                  units: Units.packUnits,
+                  allowNone: false,
+                  onChanged: (u) => setState(() => _packUnit = u ?? Units.gram),
+                ),
               ),
             ],
             const SizedBox(height: 12),
             DropdownButtonFormField<String?>(
               initialValue: _shopId,
+              isExpanded: true,
               decoration: const InputDecoration(
                 labelText: 'Laden',
                 border: OutlineInputBorder(),
@@ -179,7 +165,10 @@ class _PriceDialogState extends State<_PriceDialog> {
               items: [
                 const DropdownMenuItem(child: Text('–')),
                 for (final s in shops)
-                  DropdownMenuItem(value: s.id, child: Text(s.name)),
+                  DropdownMenuItem(
+                    value: s.id,
+                    child: Text(s.name, overflow: TextOverflow.ellipsis),
+                  ),
               ],
               onChanged: (v) => setState(() => _shopId = v),
             ),

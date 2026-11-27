@@ -1,0 +1,4 @@
+• Large text: suggestions stay visible with the keyboard open; long names use two lines.
+• Large text: prices move below the name instead of splitting words; fields stack; the list name stays visible.
+• List: price per pack (e.g. €1.29/can) below the total.
+• A last price left unchanged counts as confirmed when clearing the list and goes into the price history.
